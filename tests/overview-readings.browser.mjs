@@ -47,7 +47,7 @@ try{
  const engines=await import(process.env.PLAYWRIGHT_MODULE||"/home/obl1vion/.local/formward-tools/node_modules/playwright/index.mjs");browser=await engines[engine].launch({headless:true});const context=await browser.newContext({locale:"zh-CN",timezoneId:"Asia/Shanghai",reducedMotion:"reduce",viewport:{width:1440,height:900}});assert.equal((await context.request.post(base+"/api/auth/sign-in/email",{headers:{Origin:base},data:account})).status(),200);
  const page=await context.newPage();page.on("pageerror",e=>errors.push(e.message));page.on("response",r=>{if(r.status()>=500)networkErrors.push(r.status()+" "+new URL(r.url()).pathname)});
  const ready=async()=>{await page.waitForLoadState("networkidle");await page.waitForFunction(()=>!document.querySelector(".page-loading-dialog[open]"));await page.evaluate(()=>document.fonts.ready);};
- const go=async path=>{await page.goto(base+path);await ready();};
+ const go=async path=>{await page.waitForLoadState("networkidle");await page.goto(base+path);await ready();};
  const shot=async name=>{await page.waitForTimeout(80);const path=resolve(art,name+".png");await page.screenshot({path});screenshots.push(path);};
  const choose=async date=>{
   const point=page.locator('[data-overview-date="'+date+'"]');
