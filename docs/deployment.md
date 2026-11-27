@@ -2,6 +2,14 @@
 
 ## 当前正式版本
 
+网页和小助手后台运行 `dual-entry-72a72d23-daily-workspace-reminder-motion-r2-20261127`，源码 `72a72d23269a6381d2287a6b859cdfbd1fdb70c9`，BUILD_ID `iQPgkldLBOMhSuJaG-MN-`。北京时间 2026-11-27 20:04:49 切换。日常待办标为已记全或忽略成功后，当前行淡出收拢，下方顺势补位，角标同时更新。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version) · [实际网页验收](../design-qa.md#已发布验收--小助手待办收起动效)
+
+正式库维持 `0049_assistant_daily_reminder_dismissals`、49 项迁移及 68 张应用表。切换前备份 `formward-primary-20261127T120445428028Z.dump.json` 完成原生校验与加密异地回读。网页和 worker 从同一目录启动。四个域名和兼容 IP 同版，16 项新旧资源哈希、登录回程、6 项匿名接口限制及海外 MCP 元数据通过。
+
+候选和正式是同一运行包。lint、类型检查、生产构建、890 项单元与集成测试、10 组双端实页验收通过，留存 44 张截图及 10 段原速录屏。准确包 97,416,871 字节，SHA-256 `fd1483910d120a95ad09285443ef579cc82d1ea25be549cb1675a68f6a9c3fad`，保留 57 项 Server Action、原绑定密钥和 2671 项旧静态资源。归档于 `.codex/backups/regional-releases/daily-workspace-reminder-motion-r2-20261127`。兼容回退为 `daily-workspace-reminders-20261127`，网页和 worker 成套切换。
+
+## 小助手逐条忽略发布记录
+
 网页和小助手后台运行 `dual-entry-0ffa497d-daily-workspace-reminders-20261127`，源码 `0ffa497d3cc488855a3f79470e494251ba428fe6`，BUILD_ID `N_zpvOcPpqhoy_0gmCVi_`。北京时间 2026-11-27 19:20:27 上线。小助手日常提醒可按日期逐条忽略，去掉「按需补记」以及手机和电脑的三个手动记录按钮。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version) · [实际网页验收](../design-qa.md)
 
 迁移 `0049_assistant_daily_reminder_dismissals` 新增独立提醒忽略表。正式库为 49 项迁移和 68 张应用表，原 67 张表在停写前后的数据摘要逐表核对通过。切换前备份 `formward-primary-20261127T112021154483Z.dump.json` 完成原生校验及加密异地回读。网页和 worker 从同一目录启动。
