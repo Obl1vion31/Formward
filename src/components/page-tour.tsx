@@ -153,22 +153,22 @@ export function PageTour({ ownerId, getOrigin, configuration, onClose, onRetry }
 
     async function position(reveal: boolean) {
       if (busy || signal.aborted) return;
-      const initial = !layer.hasAttribute("data-guide-framed");
-      const old = initial ? null : geometry(frame.getBoundingClientRect(), frame.style.borderRadius);
+      const still = reduced.matches;
+      const old = still || !layer.hasAttribute("data-guide-framed") ? null : geometry(frame.getBoundingClientRect(), frame.style.borderRadius);
       const opening = layer.dataset.guidePhase === "ready";
       busy = true;
       clearTimeout(waitingTimer); waitingTimer = 0;
       clearAnchor();
       update("preparing");
-      if (opening) {
+      if (opening && !still) {
         layer.dataset.guidePhase = "dimming";
         fill.style.opacity = "1";
         await animate(fill, [{ opacity: 0 }, { opacity: 1 }], 80);
       }
       if (signal.aborted) return;
-      fill.style.opacity = "1";
+      if (!still) fill.style.opacity = "1";
       let target = resolveTarget();
-      if (target && reveal && revealTourTarget(target)) target = await settledTarget(resolveTarget, signal);
+      if (target && reveal && revealTourTarget(target) && !still) target = await settledTarget(resolveTarget, signal);
       if (signal.aborted) return;
       const box = target && targetBox(target);
       if (!target || !box) {
@@ -178,7 +178,7 @@ export function PageTour({ ownerId, getOrigin, configuration, onClose, onRetry }
         return;
       }
 
-      const oldTip = tip.getBoundingClientRect();
+      const oldTip = old && tip.getBoundingClientRect();
       // 在下一次绘制前用新说明的实际高度定位置，卡片从上一位置连续接过去。
       flushSync(() => update("preparing", current));
       const next = geometry(box, getComputedStyle(target).borderTopLeftRadius);
@@ -186,7 +186,7 @@ export function PageTour({ ownerId, getOrigin, configuration, onClose, onRetry }
       place(box);
       const newTip = tip.getBoundingClientRect();
       layer.dataset.guideFramed = "";
-      if (old) {
+      if (old && oldTip) {
         layer.dataset.guidePhase = "moving";
         await Promise.all([
           animate(frame, [old, next], 160),
@@ -206,9 +206,11 @@ export function PageTour({ ownerId, getOrigin, configuration, onClose, onRetry }
       }
       layer.dataset.guideAperture = "";
       paint(live, finalBox);
-      layer.dataset.guidePhase = "revealing";
       fill.style.opacity = "0";
-      await animate(fill, [{ opacity: 1 }, { opacity: 0 }], 80);
+      if (!still) {
+        layer.dataset.guidePhase = "revealing";
+        await animate(fill, [{ opacity: 1 }, { opacity: 0 }], 80);
+      }
       if (signal.aborted) return;
       busy = false;
       layer.dataset.guidePhase = "ready";
