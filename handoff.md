@@ -1,8 +1,10 @@
 # Formward 项目交接
 
-网页与小助手后台运行 `dual-entry-17a1788b-daily-workspace-candidate-r11-20261127`，源码 `17a1788bc3c5e43eb74a5d6850c477bcf462853a`，BUILD_ID `aIFXOtEqp4KbOYOPpLuqi`。北京时间 2026-11-27 17:15:17 切换，`main` 已包含正式运行源码。兼容回退为 `numbered-guides-batch2-r5-20261127`。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
+网页与小助手后台运行 `dual-entry-0ffa497d-daily-workspace-reminders-20261127`，源码 `0ffa497d3cc488855a3f79470e494251ba428fe6`，BUILD_ID `N_zpvOcPpqhoy_0gmCVi_`。北京时间 2026-11-27 19:20:27 切换，`main` 包含正式运行源码。兼容回退为 `daily-workspace-candidate-r11-20261127`。 [正式站](https://formward.top) · [正式版本](https://formward.top/api/app-version)
 
 总览与趋势页从「使用指引」打开编号讲解。导览切步保持遮罩与金框连续。总览双图下方显示选中日与近 7 天，体脂关闭时录入从首帧只显示体重。消耗估算保留三个同排方式，活动档位居中吸附，预计值和保存留在同一栏。小助手显示今天和昨天的日常待办，确认昨日饮食后同步更新角标和总览。 [截图与录屏](design-qa.md#已发布验收--全天消耗滚轮与分组层级)
+
+小助手待办可逐条忽略，按账号、日期和类型保存并同步角标。晚间测量从「身体」页进入。待办内的按需补记和通用记录按钮已移除。 [待办验收](design-qa.md#已发布验收--小助手逐条忽略)
 
 整份录入通过 5% 步进比例或实填可食克数录入，输入切换保留各自食量。拆分从当前用量开始，允许有食材规格依据的计件。保存后保持一条餐项，历史保留原快照。320／390 CSS px 手机与 1280 CSS px 桌面通过录入、保存刷新及旧餐复查。 [视觉验收](design-qa.md#已发布验收--整份录入按比例或重量)
 
