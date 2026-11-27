@@ -9,15 +9,11 @@ import { ChartSelectionColumn } from "@/components/chart-selection-marker";
 import { chartScale, type ChartScale } from "@/components/chart-scale";
 import type { useChartDateSelection } from "@/components/use-chart-date-selection";
 import { useChartMotion } from "@/components/use-chart-motion";
-import { compactReferenceTick, dayReadoutLeft, morningChangeScale, spacedTicks } from "./chart-geometry";
-import { DayReadout } from "./day-readout";
+import { compactReferenceTick, morningChangeScale, spacedTicks } from "./chart-geometry";
 import { balanceLabel, hasEnergyRecord, shortDate } from "./day-readings";
 import type { OverviewDay } from "./model";
 import styles from "./overview.module.css";
 import { relationshipFrame, relationshipFrameStyle } from "./relationship-frame";
-
-type ReadoutMode = "hover" | "focus" | "pinned";
-type ReadoutChoice = { scope: string; mode: ReadoutMode };
 
 const balanceColors = { surplus: "var(--data-surplus)", deficit: "var(--data-deficit)", even: "var(--muted)" };
 const weightColor = "var(--data-weight)";
@@ -41,11 +37,9 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
     container.current = node;
     bindRangePlot?.(node);
   }, [bindRangePlot]);
-  const plot = useRef<HTMLDivElement>(null);
   const id = useId().replaceAll(":", "");
   const mobile = useMobileMode();
   const [shortViewport, setShortViewport] = useState<boolean | null>(null);
-  const [readout, setReadout] = useState<ReadoutChoice | null>(null);
   useEffect(() => {
     const query = window.matchMedia("(max-height: 600px)");
     const update = () => setShortViewport(query.matches);
@@ -73,7 +67,6 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
   const slot = (right - left) / days.length;
   const x = (index: number) => left + (index + .5) * slot;
   const selectedIndex = Math.max(0, days.findIndex(day => day.date === selected));
-  const entry = entries[selectedIndex];
   const lastIndex = days.length - 1;
   const guideStride = Math.max(1, Math.ceil(lastIndex / 6));
   const stride = w < 440 ? Math.max(1, Math.ceil(lastIndex / 3)) : guideStride;
@@ -82,51 +75,12 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
   const longRangeGuides = guideRange === "90" ? new Set([0, 1, 2, 3, 4].map(part => Math.round(lastIndex * part / 4))) : null;
   const showsGuide = (index: number) => guideRange === "7" || (guideRange === "30" && isDateTick(index, guideStride)) || longRangeGuides?.has(index);
   const scope = [days[0]?.date, days.at(-1)?.date, days.length, motionRevision].join(":");
-  const mode = !suspended && readout?.scope === scope ? readout.mode : null;
   const ready = !!width && (compactMode !== undefined || mobile !== null) && (!compact || shortViewport !== null);
-  const hasReadout = entry.recorded || entry.day.morning !== null || entry.day.nextMorning !== null || entry.day.ambiguous;
-  const showReadout = ready && hasReadout && mode !== null && (mode !== "hover" || selection.origin === "pointer");
-  const show = (mode: ReadoutMode) => setReadout(current => current?.scope === scope && current.mode === mode ? current : { scope, mode });
-
-  useEffect(() => {
-    if (!showReadout) return;
-    const outside = (event: Event) => {
-      if (event.target instanceof Node && !plot.current?.contains(event.target)) setReadout(null);
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
-      event.preventDefault();
-      event.stopPropagation();
-      setReadout(null);
-    };
-    document.addEventListener("pointerdown", outside, true);
-    document.addEventListener("focusin", outside, true);
-    document.addEventListener("keydown", escape, true);
-    return () => {
-      document.removeEventListener("pointerdown", outside, true);
-      document.removeEventListener("focusin", outside, true);
-      document.removeEventListener("keydown", escape, true);
-    };
-  }, [showReadout]);
-
-  const drag = useChartDrag(days.map(day => day.date), w, left, w - right, date => {
-    setReadout(null);
-    selection.choose(date);
-  });
-  function activate(date: string) {
-    if (showReadout && mode === "pinned" && selected === date) {
-      setReadout(null);
-      return;
-    }
-    selection.activate(date);
-    show("pinned");
-  }
+  const drag = useChartDrag(days.map(day => day.date), w, left, w - right, selection.choose);
 
   const canGrow = motionRevision !== undefined;
   useChartMotion(container, ready && canGrow && !nestedChange && (hasEnergy || hasWeight) ? w + ":" + height : "pending",
     "overview-relationship:" + motionRevision, motionRevision ? 220 : 600);
-  const tipId = id + "-day";
-  const tipWidth = Math.min(compact ? 212 : 226, w - 16);
 
   const barWidth = Math.min(compact ? (guideRange === "7" ? 14 : 6.4) : 17, slot * .65);
   const weightRadius = Math.min(compact ? 2.2 : 2.8, slot * .42);
@@ -188,26 +142,19 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
   return <div ref={bindContainer} role="group" aria-label="热量收支与次晨体重变化" className={styles.relationship} data-nested-chart=""
     onPointerDownCapture={finishRange} onFocusCapture={finishRange} onKeyDownCapture={finishRange}
     style={relationshipFrameStyle} data-compact={compactMode ?? mobile ?? undefined}>
-    <div ref={plot} className={styles.plot} aria-busy={!ready}
-      onPointerLeave={event => { if (event.pointerType === "mouse" && mode === "hover") setReadout(null); }}
-      onBlur={event => { if (mode === "focus" && !event.currentTarget.contains(event.relatedTarget)) setReadout(null); }}>
+    <div className={styles.plot} aria-busy={!ready}>
       <ChartPreparation active={!ready}/>
       <svg viewBox={["0", "0", w, height].join(" ")} style={{ visibility: ready ? undefined : "hidden" }}
         role="group" aria-label="双层日期关联图" aria-describedby={id + "-help"} {...drag}
         onPointerMove={event => {
           drag.onPointerMove(event);
-          if (event.pointerType !== "mouse" || suspended || mode === "pinned" || container.current?.hasAttribute("data-chart-range-motion")) return;
+          if (event.pointerType !== "mouse" || suspended || selection.locked || container.current?.hasAttribute("data-chart-range-motion")) return;
           const bounds = event.currentTarget.getBoundingClientRect();
           const localX = (event.clientX - bounds.left) * w / bounds.width;
           const localY = (event.clientY - bounds.top) * height / bounds.height;
           if (localY < top || localY > weightBottom || localX < left || localX > right) return;
           const date = days[Math.min(days.length - 1, Math.floor((localX - left) / slot))].date;
-          if (selection.locked) {
-            if (date === selected) return;
-            selection.release();
-          }
           selection.preview(date);
-          show("hover");
         }}>
         <desc id={id + "-help"}>上下两图使用同一日期。净收支以零线为基准，无法计算的日期留空。点按、悬停或使用方向键查看单日读数，点击可锁定日期。查看记录按钮打开当日记录。次晨变化使用相邻两次实测晨重。</desc>
         {(guideRange === "7" || guideRange === "30" || guideRange === "90") && <g aria-hidden="true" pointerEvents="none" className={styles.grid}>
@@ -257,21 +204,9 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
           return <g key={day.date} role="button" tabIndex={active ? 0 : -1} data-overview-date={day.date} data-selected={active} aria-pressed={active}
             data-balance={balance ?? undefined} data-meal-day-status={day.mealDayStatus} data-chart-date={day.date}
             aria-label={day.date + " · " + balanceLabel(balance) + (balance ? " " + Math.abs(balance) + " 千卡" : "")}
-            aria-describedby={active && showReadout ? tipId : undefined}
-            onFocus={event => {
-              selection.focus(event, day.date);
-              if (event.currentTarget.matches(":focus-visible") && mode !== "pinned") show("focus");
-            }}
-            onClick={() => activate(day.date)}
-            onKeyDown={event => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                activate(day.date);
-              } else {
-                if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) show("focus");
-                selection.keyDown(event, day.date);
-              }
-            }}>
+            onFocus={event => selection.focus(event, day.date)}
+            onClick={() => selection.activate(day.date)}
+            onKeyDown={event => selection.keyDown(event, day.date)}>
             <rect x={left + index * slot} y={top} width={slot} height={weightBottom - top} className={styles.plotHit} />
           </g>;
         })}
@@ -279,16 +214,11 @@ export function RelationshipPlot({ days, selected, selection, compactMode, motio
           if (!isDateTick(index, stride)) return null;
           return <text key={day.date} x={x(index)} y={height - 5} textAnchor={days.length === 1 ? "middle" : index === 0 ? "start" : index === lastIndex ? "end" : "middle"}
             data-overview-date-label="" data-range-mark={"date-tick:" + day.date} className={styles.axis}
-            aria-hidden="true" onClick={() => activate(day.date)}>
+            aria-hidden="true" onClick={() => selection.activate(day.date)}>
             {w < 440 && days.length <= 7 ? day.date.slice(8) : days.length > 366 ? day.date.slice(2, 7).replace("-", ".") : shortDate(day.date)}
           </text>;
         })}
       </svg>
-      {showReadout && <DayReadout day={entry.day} id={tipId} style={{
-        width: tipWidth,
-        left: dayReadoutLeft(x(selectedIndex), w, tipWidth, compact),
-        bottom: height - energyBottom + (compact ? 6 : 10),
-      }} />}
     </div>
   </div>;
 }

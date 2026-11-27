@@ -29,23 +29,25 @@ import {formatRecordNumber} from "./number-format";
 import {formatNutrition} from "@/features/meals/model";
 import overview from '@/features/dashboard/overview.module.css';
 import {TodayActions} from '@/features/dashboard/today-actions';
+import {BodyFatContext} from "@/features/measurements/visibility";
 export type WorkspaceReadingKind = "overview" | "nutrition" | "energy" | "body";
-export function WorkspaceLoading({kind,returnShell=false,destination,failure,retry:retryRead}:{kind:WorkspaceReadingKind;returnShell?:boolean;destination?:string;failure?:React.ReactNode;retry?:()=>void}){
+export function WorkspaceLoading({kind,returnShell=false,destination,navigation=false,failure,retry:retryRead}:{kind:WorkspaceReadingKind;returnShell?:boolean;destination?:string;navigation?:boolean;failure?:React.ReactNode;retry?:()=>void}){
  const sourcePilot=useContext(WorkspaceSourceContext);
  const today=useContext(WorkspaceTodayContext);
+ const showFat=useContext(BodyFatContext);
  const {preview,previewReadings,returningToOverview,sceneLeaving,recallOverview}=useChartTransition(),ref=useRef<HTMLDivElement>(null),router=useRouter(),[attempt,setAttempt]=useState(0),routeParams=useSearchParams(),mobile=useMobileMode(),params=destination?new URL(destination,'https://formward.invalid').searchParams:routeParams;
  const model=preview&&((kind==='nutrition'&&preview.kind==='intake')||(kind==='body'&&preview.kind==='morning-weight')||(kind==='energy'&&preview.kind==='energy'))?preview:null;
  const linkedRange=linkedTrend(Object.fromEntries(params)),linked=!!linkedRange,shared=kind!=="overview",adaptive=mobile||shared;
  const tickLabels=kind==='body'?(model?.ticks??[]).map(value=>value.toFixed(1)):model?.ticks??[];
  const waiting=(!returnShell||returningToOverview)&&!(destination&&sceneLeaving);
  const entryOpen=params.has('entry');
- const retry=()=>{setAttempt(value=>value+1);if(retryRead)retryRead();else if(kind==='overview'&&returningToOverview)router.push('/dashboard',{scroll:false});else router.refresh();};
- const readingStatus=failure??(waiting&&!entryOpen?<LocalLoading key={attempt} onRetry={retry} immediate={!model} label={!model?"正在加载…":"正在读取…"}/>:null);
+ const retry=()=>{setAttempt(value=>value+1);if(retryRead)retryRead();else if(navigation&&destination)router.push(destination);else if(kind==='overview'&&returningToOverview)router.push('/dashboard',{scroll:false});else router.refresh();};
+ const readingStatus=failure??(waiting&&!entryOpen?<LocalLoading key={attempt} onRetry={retry} immediate={!model&&!navigation} label={!model?"正在加载…":"正在读取…"}/>:null);
  const body=kind==='body',title={overview:'总览',nutrition:'饮食',energy:'消耗',body:'身体'}[kind];
- const labels=body?['晨间体重','晨间体脂率','7日平均体重']:kind==='energy'?['总消耗','静息','活动']:[];
+ const labels=body?['晨间体重',showFat?'晨间体脂率':'较前一日','7日平均体重']:kind==='energy'?['总消耗','静息','活动']:[];
  const range=params.get('view')==='trend'?'custom':mobile?'7':'30',date=kind==='overview'?'':linkedDate(params.get('date'))??today;
  const readings=model&&previewReadings?.kind===model.kind&&previewReadings.date===date?previewReadings:null;
- const metrics:RecordMetric[]=labels.map((label,index)=>({label,value:'',pending:true,tone:kind==='energy'&&index>0?index===1?'blue':'red':undefined,action:body&&index===0?<button type="button" onClick={()=>window.dispatchEvent(new Event('formward-open-body-settings'))}>身体设置</button>:undefined,inlineUnit:body,unit:body?index===1?'%':'kg':'kcal'}));
+ const metrics:RecordMetric[]=labels.map((label,index)=>({label,value:'',pending:true,tone:kind==='energy'&&index>0?index===1?'blue':'red':undefined,action:body&&index===0?<button type="button" onClick={()=>window.dispatchEvent(new Event('formward-open-body-settings'))}>身体设置</button>:undefined,inlineUnit:body,unit:body?index===1&&showFat?'%':'kg':'kcal'}));
  if(readings?.kind==='energy'){
    [readings.totalKcal,readings.restingKcal,readings.activeKcal].forEach((value,index)=>{metrics[index]={...metrics[index],value:formatNutrition(value??null,'caloriesKcal'),pending:value==null};});
  }else if(readings?.kind==='morning-weight')metrics[0]={...metrics[0],value:formatRecordNumber(readings.weightKg),pending:readings.weightKg==null};
@@ -77,6 +79,10 @@ export function WorkspaceLoading({kind,returnShell=false,destination,failure,ret
  // 返回意图先于URL提交，明确读取总览自己的真实快照，不借用仍在地址栏中的详情条件。
  // 前进完成后预备隐藏的本人缓存，避免点击返回时才构建整页。专属预备标记
  // 阻止注册图形、消费焦点与提示；刷新上下文阻止它冒充真实读取完成。
+ if(navigation&&destination){
+  const target=new URL(destination,"https://formward.invalid");
+  return <WorkspacePending path={target.pathname} query={target.search} retry={retry}>{content}</WorkspacePending>;
+ }
  if(destination||failure)return content;
  return kind==='overview'&&(returnShell||returningToOverview)
   ?returningToOverview||!sceneLeaving?<WorkspacePending path="/dashboard" query="">{content}</WorkspacePending>:content

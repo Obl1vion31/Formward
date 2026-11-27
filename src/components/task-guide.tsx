@@ -5,6 +5,7 @@ import { guidePresent, type GuideStep } from "./guide-position";
 import { PageTour } from "./page-tour";
 import styles from "./task-guide.module.css";
 import { WorkspaceRetryContext } from "@/features/dashboard/workspace-cache-context";
+import { useWorkspaceArrival } from "./workspace-navigation";
 
 type Run = { task: string; configuration: string; path: string };
 type GuideSession = {
@@ -21,7 +22,8 @@ export function TaskGuideProvider({ accountId, children }: { accountId: string; 
 
 // 导览属于当前页面会话。读取外壳被真实内容替换时，编号与说明继续保留。
 function GuideSession({ account, children }: { account: string; children: ReactNode }) {
-  const ownerId = useId(), pathname = usePathname(), router = useRouter();
+  const ownerId = useId(), actualPath = usePathname(), router = useRouter();
+  const pathname = useWorkspaceArrival()?.path ?? actualPath;
   const triggers = useRef(new Map<string, Set<HTMLElement>>());
   const retries = useRef(new Map<HTMLElement, () => void>());
   const [run, setRun] = useState<Run | null>(null);
@@ -47,8 +49,8 @@ function GuideSession({ account, children }: { account: string; children: ReactN
     if (restoreFocus && guidePresent(opener, true)) opener.focus({ preventScroll: true });
   }, [getOrigin, run]);
   const open = useCallback((task: string, steps: GuideStep[]) => {
-    setRun({ task, configuration: JSON.stringify(steps), path: window.location.pathname });
-  }, []);
+    setRun({ task, configuration: JSON.stringify(steps), path: pathname });
+  }, [pathname]);
   const retry = useCallback(() => {
     const origin = getOrigin(), read = origin ? retries.current.get(origin) : undefined;
     if (read) read(); else router.refresh();

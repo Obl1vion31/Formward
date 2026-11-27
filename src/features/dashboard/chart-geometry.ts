@@ -49,15 +49,3 @@ export function compactReferenceTick(scale: ChartScale, height: number) {
   return eligible.reduce<number | null>((best, tick) =>
     best === null || Math.abs(tick - ideal) < Math.abs(best - ideal) ? tick : best, null);
 }
-
-export function dayReadoutLeft(x: number, width: number, cardWidth: number, compact: boolean) {
-  const inset = 8;
-  const gap = compact ? 12 : 15;
-  const limit = width - cardWidth - inset;
-  const before = x - gap - cardWidth;
-  const after = x + gap;
-  if (!compact && after <= limit) return after;
-  if (before >= inset) return before;
-  if (after <= limit) return after;
-  return x < width / 2 ? limit : inset;
-}

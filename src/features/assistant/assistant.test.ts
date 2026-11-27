@@ -16,28 +16,44 @@ const blank: ReminderCatalog = { body: [], meals: [], energy: [] };
 const now = new Date("2024-08-02T12:00:00Z"), created = "2024-07-01T00:00:00Z";
 const context = (catalog = blank, date = now, createdAt = created, timezone = "Asia/Shanghai") => assistantContext(catalog, date, timezone, createdAt);
 
-test("昨日无饮食记录计入一条可忽略提醒；新账号不追讨昨日", () => {
-  const result = context(); assert.equal(result.pending.length, 1); assert.equal(result.pending[0].dismissible,true); assert.equal(result.suggestions.length, 3);
-  assert.deepEqual(context(blank, now, now.toISOString()).suggestions.map(item => item.category), ["body", "body"]);
+test("日常待办按本地日期出现，新账号不追讨昨日", () => {
+  const result = context();
+  assert.deepEqual(result.pending.map(item => item.category), ["body", "meals", "energy"]);
+  assert.ok(result.pending.find(item => item.category === "meals")?.dismissible);
+  assert.deepEqual(result.suggestions.map(item => item.id), ["body:2024-08-02:evening"]);
+  assert.deepEqual(context(blank, now, now.toISOString()).pending.map(item => item.category), ["body"]);
 });
-test("已有饮食未确认／未记全／修改后失效需要核对，已记全营养未知不重问", () => {
+test("饮食未确认和未记全区分，带餐数和原确认版本", () => {
+  const confirmation = { version: 2, contentDigest: "a".repeat(64) };
   for (const status of ["unconfirmed", "incomplete", "complete"]) {
-    const result = context({ ...blank, meals: [{ date: "2024-08-01", status, source: "record_change", complete: status === "complete" }] });
-    assert.equal(result.pending.length, status === "complete" ? 0 : 1);
-    if (result.pending.length) assert.equal(result.pending[0].action.href, "/dashboard/meals?date=2024-08-01&intent=edit");
+    const result = context({ ...blank, meals: [{ date: "2024-08-01", status, complete: status === "complete", count:2, confirmation }] });
+    const item = result.pending.find(row => row.category === "meals");
+    if (status === "complete") { assert.equal(item, undefined); continue; }
+    assert.equal(item?.action.href, "/dashboard/meals?date=2024-08-01&intent=edit");
+    assert.equal(item?.title, status === "unconfirmed" ? "饮食未确认" : "饮食未记全");
+    assert.equal(item?.detail, "已记 2 餐");
+    assert.deepEqual(item?.mealConfirmation, confirmation);
   }
+  assert.equal(context().pending.find(item=>item.category==="meals")?.mealConfirmation, undefined);
 });
-test("消耗部分和未知仅建议补充，明确0的可用总数不提示", () => {
-  assert.equal(context({ ...blank, energy: [{ date: "2024-08-01", hasTotal: true }] }).suggestions.some(item => item.category === "energy"), false);
-  assert.match(context({ ...blank, energy: [{ date: "2024-08-01", hasTotal: false }] }).suggestions.find(item => item.category === "energy")!.detail, /全天读数/);
+test("昨日仅缺完整消耗才进待办，采用稳定设备时查看同步", () => {
+  const item = context().pending.find(item => item.category === "energy");
+  assert.equal(item?.action.href, "/dashboard/energy?date=2024-08-01&entry=1");
+  const device = assistantContext(blank,now,"Asia/Shanghai",created,{label:"Garmin Personal",status:"failed"}).pending.find(item=>item.category==="energy");
+  assert.equal(device?.action.href,"/dashboard/sources");
+  assert.equal(device?.detail,"Garmin Personal 同步未完成");
+  assert.ok(!context({ ...blank, energy: [{ date: "2024-08-01", hasTotal: true }] }).pending.some(item => item.category === "energy"));
 });
-test("身体仅作按需补记，遵守06／18点边界与旧空腹异常", () => {
+test("只有已记录的当日空腹体重完成晨间事项，晚间仍按需记录", () => {
   const at = (clock: string) => new Date(`2024-08-02T${clock}+08:00`);
-  for (const [clock, count] of [["05:59:59", 0], ["06:00:00", 1], ["17:59:59", 1], ["18:00:00", 2]] as const) assert.equal(context(blank, at(clock), now.toISOString()).suggestions.filter(item => item.category === "body").length, count);
-  const catalog: ReminderCatalog = { ...blank, body: [{ date: "2024-08-02", period: "daytime", recorded: false, estimated: true, blocked: false }, { date: "2024-08-02", period: "evening", recorded: true, estimated: false, blocked: false }] };
-  assert.match(context(catalog).suggestions.find(item => item.category === "body")!.title, /晨间测量/);
-  assert.equal(context(catalog).pending.some(item=>item.category==="body"),false);
-  catalog.body[0].blocked = true; assert.equal(context(catalog).suggestions.some(item => item.category === "body"), false);
+  for (const [clock, expected] of [["05:59:59", false], ["06:00:00", true], ["17:59:59", true], ["18:00:00", true]] as const) {
+    assert.equal(context(blank, at(clock)).pending.some(item => item.category==="body"), expected);
+  }
+  const morning: ReminderCatalog["body"][number]={ date:"2024-08-02", period:"daytime", recorded:true, weightRecorded:false, estimated:false, blocked:false };
+  const evening: ReminderCatalog["body"][number]={ date:"2024-08-02", period:"evening", recorded:true, weightRecorded:true, estimated:false, blocked:false };
+  assert.ok(context({...blank,body:[morning,evening]}).pending.some(item=>item.category==="body"));
+  assert.ok(!context({...blank,body:[{...morning,weightRecorded:true},evening]}).pending.some(item=>item.category==="body"));
+  assert.equal(context({...blank,body:[{...morning,blocked:true}]}).pending.find(item=>item.category==="body")?.action.label,"核对记录");
 });
 test("时区控制当地日期；非法时区拒绝，审核及教程不提供助手入口", () => {
   assert.equal(context(blank, new Date("2024-08-02T23:59:00Z"), created, "Asia/Shanghai").localDate, "2024-08-03");
@@ -72,11 +88,12 @@ test("有界读取复用业务口径，重复读取无写入且不泄露其他�
   const energy = await readEnergySnapshot(db, users[0].id, ["2024-08-01", "2024-08-02"]);
   assert.equal(energy.days.length, 1); assert.equal(energy.days[0].totalKcal, "0.0000"); assert.deepEqual(energy.profiles, []);
   const result = await readAssistantContext(db, users[0], "Asia/Shanghai", now);
-  assert.equal(result.pending.length, 1); assert.equal(result.suggestions.some(item => item.category === "energy"), false);
+  assert.deepEqual(result.pending.map(item=>item.category), ["body","meals"]);
+  assert.ok(result.pending.find(item=>item.category==="meals")?.mealConfirmation);
   assert.deepEqual(await readAssistantContext(db, users[0], "Asia/Shanghai", now), result);
   assert.deepEqual(await db.select().from(schema.meal), beforeMeals); assert.deepEqual(await db.select().from(schema.mealEvent), beforeEvents);
   const emptyUser = { id: randomUUID(), createdAt: new Date(created) }; await db.insert(schema.user).values({ ...emptyUser, name: "虚构空账号", email: `${emptyUser.id}@example.test` });
-  assert.equal((await readAssistantContext(db, emptyUser, "Asia/Shanghai", now)).pending.length, 1);
+  assert.equal((await readAssistantContext(db, emptyUser, "Asia/Shanghai", now)).pending.length, 3);
 });
 
 
@@ -84,11 +101,11 @@ test("忽略只影响本人昨日提醒，幂等保存、跨读取生效，不�
   const owner={id:randomUUID(),createdAt:new Date(created)},other={id:randomUUID(),createdAt:new Date(created)};
   for(const row of [owner,other])await db.insert(schema.user).values({...row,name:"虚构提醒账号",email:row.id+"@example.test"});
   const meals=await db.select().from(schema.meal),days=await db.select().from(schema.mealDay),events=await db.select().from(schema.mealEvent);
-  assert.equal((await readAssistantContext(db,owner,"Asia/Shanghai",now)).pending.length,1);
+  assert.equal((await readAssistantContext(db,owner,"Asia/Shanghai",now)).pending.length,3);
   await dismissAssistantMealReminder(db,owner,"meals:2024-08-01","Asia/Shanghai",now);
   await dismissAssistantMealReminder(db,owner,"meals:2024-08-01","Asia/Shanghai",now);
-  assert.equal((await readAssistantContext(db,owner,"Asia/Shanghai",now)).pending.length,0);
-  assert.equal((await readAssistantContext(db,other,"Asia/Shanghai",now)).pending.length,1);
+  assert.equal((await readAssistantContext(db,owner,"Asia/Shanghai",now)).pending.length,2);
+  assert.equal((await readAssistantContext(db,other,"Asia/Shanghai",now)).pending.length,3);
   const rows=(await db.select().from(schema.assistantReminderDismissal)).filter(row=>row.userId===owner.id);assert.equal(rows.length,1);
   const next=await readAssistantContext(db,owner,"Asia/Shanghai",new Date("2024-08-03T12:00:00Z"));
   assert.deepEqual(next.pending.filter(item=>item.category==="meals").map(item=>item.date),["2024-08-02"]);

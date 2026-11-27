@@ -6,7 +6,7 @@ import { withCurrentSession } from "@/features/auth/server";
 import { getDatabase } from "@/db/client";
 import { safeAiError } from "@/features/measurements/ai-api";
 import { submitMealOperation, decideMealOperation, reviseMealOperation, readMealSnapshot, getMealOperation } from "@/features/meals/records";
-import type { MealInput, MealAction } from "@/features/meals/model";
+import { dailyTotals, type MealInput, type MealAction, type MealDayInput } from "@/features/meals/model";
 async function perform<T>(work: (userId: string) => Promise<T>,mode:"read"|"write"="write") {
   try { return await withCurrentSession(await headers(), async user => { const data = await work(user.id); revalidatePath("/dashboard/meals"); revalidatePath("/dashboard/meals/review/[id]", "page"); revalidatePath("/dashboard/ai"); revalidatePath("/dashboard"); return { ok: true as const, data }; },mode); }
   catch(error) { return { ok: false as const, error: safeAiError(error).error.message }; }
@@ -35,8 +35,18 @@ export async function permanentlyDeleteAction(input: import("@/features/meals/re
   return { snapshot:await readMealSnapshot(db,userId),message:result.message };
 }); }
 
-export async function saveMealDayAction(input: import("@/features/meals/model").MealDayInput) { return perform(async userId=>{
+export async function saveMealDayAction(input: MealDayInput) { return perform(async userId=>{
   const {setMealDayStatus}=await import("@/features/meals/day-status");
   const db=getDatabase();await setMealDayStatus(db,userId,input);
   return {snapshot:await readMealSnapshot(db,userId),message:input.status==="complete"?"已确认这一天记完。":"已标记未记全，摄入保留，暂不计入盈余。"};
+});}
+
+/** 待办只需要被确认的一天，不带回食材库或其他历史餐次。 */
+export async function completeAssistantMealDayAction(input: Omit<MealDayInput,"status">) { return perform(async userId=>{
+  const {setMealDayStatus}=await import("@/features/meals/day-status");
+  const db=getDatabase();
+  await setMealDayStatus(db,userId,{...input,status:"complete"});
+  const snapshot=await readMealSnapshot(db,userId,[input.date]);
+  const day=dailyTotals(snapshot.meals).find(row=>row.date===input.date)?.day;
+  return { status:day?.status??null, version:day?.version??null };
 });}

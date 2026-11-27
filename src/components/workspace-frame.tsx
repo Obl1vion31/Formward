@@ -16,6 +16,7 @@ import {useAssistant} from '@/features/assistant/context';
 import {TrainingSkeleton} from '@/features/training/loading';
 import {WorkspaceReturnLink} from "./workspace-return";
 import {isMealLibrary} from '@/features/meals/library-location';
+import {useWorkspaceArrival} from './workspace-navigation';
 
 type WorkspaceKind = "overview" | "nutrition" | "training" | "energy" | "body";
 
@@ -74,7 +75,12 @@ export function WorkspaceFrame({children,today,sourcePilot=false}:{children:Reac
  },[]);
  const location=usePathname(),liveParams=useSearchParams(),{source}=useAssistant();
  const actualPath=source?.path??location,params=source?new URLSearchParams(source.query):liveParams;
- const {returningToOverview,forwardDestination,scene,sceneLeaving,revealScene,finishScene}=useChartTransition(),path=returningToOverview?'/dashboard':forwardDestination?new URL(forwardDestination,'https://formward.invalid').pathname:actualPath,search=params.toString(),localToday=useLocalToday(today),[settings,setSettings]=useState(false);
+ const requestedArrival=useWorkspaceArrival();
+ const {returningToOverview,forwardDestination,scene,sceneLeaving,revealScene,finishScene}=useChartTransition();
+ const arrival=returningToOverview||forwardDestination||scene?null:requestedArrival;
+ const path=returningToOverview?"/dashboard":forwardDestination?new URL(forwardDestination,"https://formward.invalid").pathname:arrival?.path??actualPath;
+ const search=arrival?.query??params.toString(),displayParams=arrival?new URLSearchParams(search):params;
+ const localToday=useLocalToday(today),[settings,setSettings]=useState(false);
  const frame=useRef<HTMLDivElement>(null),previousLayer=useRef<HTMLDivElement>(null);
  useLayoutEffect(()=>{
   const layer=previousLayer.current,body=frame.current;
@@ -100,13 +106,14 @@ export function WorkspaceFrame({children,today,sourcePilot=false}:{children:Reac
  const forward=returningToOverview?null:forwardDestination;
  const requested=forward?new URL(forward,'https://formward.invalid'):null;
  const coverOldRoute=!!requested&&(requested.pathname!==actualPath||chartDestinationSearch(requested.search)!==chartDestinationSearch(search));
- return <WorkspaceTodayContext value={localToday}><WorkspaceSourceContext value={sourcePilot}><main className="dashboard-page" data-workspace-frame={kind} data-workspace-scene={scene?.direction} data-scene-leaving={sceneLeaving||undefined} aria-hidden={sceneLeaving||undefined} inert={sceneLeaving||undefined}><EntrySurface path={actualPath} query={params}><div ref={frame} className={styles.frame} data-workspace-body>
-  <header className={styles.heading} data-body={isBody||undefined}><div className={styles.pageTitle}><h1>{kind === "nutrition" && isMealLibrary(params) ? "食材库" : page[1]}</h1></div>{isBody&&<button type="button" onClick={()=>setSettings(true)}>身体设置 <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="M7 3h6l.6 2 1.9 1.1 2 .5v6.8l-2 .5-1.9 1.1-.6 2H7l-.6-2-1.9-1.1-2-.5V6.6l2-.5L6.4 5Z"/><circle cx="10" cy="10" r="3"/></svg></button>}</header>
+ return <WorkspaceTodayContext value={localToday}><WorkspaceSourceContext value={sourcePilot}><main className="dashboard-page" data-workspace-frame={kind} data-workspace-scene={scene?.direction} data-scene-leaving={sceneLeaving||undefined} aria-hidden={sceneLeaving||undefined} inert={sceneLeaving||undefined}><EntrySurface path={arrival?.path??actualPath} query={displayParams}><div ref={frame} className={styles.frame} data-workspace-body>
+  <header className={styles.heading} data-body={isBody||undefined}><div className={styles.pageTitle}><h1>{kind === "nutrition" && isMealLibrary(displayParams) ? "食材库" : page[1]}</h1></div>{isBody&&<button type="button" onClick={()=>setSettings(true)}>身体设置 <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="M7 3h6l.6 2 1.9 1.1 2 .5v6.8l-2 .5-1.9 1.1-.6 2H7l-.6-2-1.9-1.1-2-.5V6.6l2-.5L6.4 5Z"/><circle cx="10" cy="10" r="3"/></svg></button>}</header>
   {kind==='training'&&<WorkspaceReturnLink assistantOnly/>}
   <div ref={content} className={styles.content} data-workspace-content>
+   {arrival&&<div data-workspace-arrival={arrival.path}>{kind==="training"?<TrainingSkeleton/>:<WorkspaceLoading key={arrival.key} kind={kind} destination={arrival.href} navigation/>}</div>}
    {forward&&<div data-forward-shell><WorkspaceLoading kind={path.endsWith('/meals')?'nutrition':path.endsWith('/energy')?'energy':'body'} destination={forward}/></div>}
    {(returningToOverview||!scene&&actualPath!=="/dashboard"&&params.get("view")==="trend")&&<div className={styles.returnShell} data-return-prepared={!returningToOverview||undefined} hidden={!returningToOverview} aria-hidden={!returningToOverview} inert={!returningToOverview}><WorkspaceLoading kind="overview" returnShell/></div>}
-   <WorkspaceRouteContent kind={kind} cover={returningToOverview?"return":forward?"forward":null} coverOldRoute={coverOldRoute}>{children}</WorkspaceRouteContent>
+   <WorkspaceRouteContent kind={kind} cover={returningToOverview||arrival?"return":forward?"forward":null} coverOldRoute={coverOldRoute}>{children}</WorkspaceRouteContent>
   </div>
   {settings&&isBody&&<Inspector title="身体设置" close={()=>setSettings(false)}><BodySettings/></Inspector>}
  </div></EntrySurface></main><div ref={previousLayer} className={styles.previousScene} data-workspace-previous aria-hidden="true" inert/></WorkspaceSourceContext></WorkspaceTodayContext>;

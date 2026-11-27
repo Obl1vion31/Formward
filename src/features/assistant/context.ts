@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useContext } from "react";
-import type { AssistantContext } from "./model";
+import type { AssistantContext, AssistantItem } from "./model";
 import type { AssistantPageMotion, AssistantPageState } from "./page-navigation";
 
 export type AssistantTasksState = {
@@ -9,6 +9,7 @@ export type AssistantTasksState = {
   loading: boolean;
   retry: () => void;
   dismissItem: (id: string) => Promise<string>;
+  completeMealDay: (item: AssistantItem, operationId: string) => Promise<string>;
 };
 type AssistantSource = { path: string; query: string };
 type AssistantState = {

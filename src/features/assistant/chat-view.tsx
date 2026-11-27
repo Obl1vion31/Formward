@@ -89,8 +89,8 @@ export function ChatNavigation({tab,onTab,pendingCount}:{tab:ChatTab;onTab:(valu
       <button type="button" role="tab" data-capsule-choice={0} aria-selected={tab === "chat"} onClick={() => onTab("chat")}>
         <span className={styles.tabLabel}>聊天</span>{locked && <small className={styles.tierBadge}>未开放</small>}
       </button>
-      <button type="button" role="tab" data-capsule-choice={1} aria-selected={tab === "tasks"} onClick={() => onTab("tasks")}>
-        <span className={styles.tabLabel}>待办</span>{pendingCount > 0 && <span className={styles.tabBadge}>{pendingCount}</span>}
+      <button type="button" role="tab" data-capsule-choice={1} aria-selected={tab === "tasks"} aria-description={pendingCount>0?pendingCount+" 项待办":undefined} onClick={() => onTab("tasks")}>
+        <span className={styles.tabLabel}>待办</span>{pendingCount > 0 && <span className={styles.tabBadge} aria-hidden="true">{pendingCount}</span>}
       </button>
     </div>
     <select className={styles.navSelect} aria-label="切换聊天与待办" value={tab} onChange={event => onTab(event.target.value as ChatTab)}>

@@ -239,19 +239,58 @@ form.energyEntry[data-entry-form=energy] .primaryReadings>label>input[type=numbe
 .calculationBubble p{margin:8px 0}
 .calculationBubble small{display:block;font-size:12px;color:var(--muted)}
 .formulaText{font-variant-numeric:tabular-nums}
-.activityLevels{margin:0}
-.activityLevels h3{font-size:14px;font-weight:500;margin:12px 0 4px}
-.activityLevels>p{font-size:13px;color:var(--muted);margin:0 0 12px;line-height:1.7}
-.activityLevel{display:flex!important;align-items:center;gap:12px;box-sizing:border-box;width:100%;max-width:100%;padding:14px 6px;border-bottom:1px solid var(--line);border-radius:8px;min-height:64px;cursor:pointer}
-.activityLevel input{width:18px!important;height:18px!important;min-height:18px!important;padding:0!important;margin:0;accent-color:var(--gold);flex-shrink:0}
-.activityLevel>span{flex:1;min-width:0}
-.activityLevel strong{display:block;font-size:14px;font-weight:500}
-.activityLevel small{display:block;font-size:12px;line-height:1.7;color:var(--muted);margin-top:3px}
-.activityHeading{display:flex;align-items:center;justify-content:space-between;min-block-size:36px}
-.activityHeading h3{margin:0}
-.activityLevel:has(:checked){color:var(--warm-white);background:color-mix(in srgb,var(--gold) 11%,transparent);border-radius:10px}
-.activityLevel:has(input:focus-visible){outline:2px solid var(--gold);outline-offset:-2px}
-.activityLevels .hint{margin-top:14px}
+
+.activityLevels { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:2px 8px; margin:8px 0 0; }
+.activityLevels h3 { grid-column:1; grid-row:1; align-self:center; font-size:1rem; font-weight:590; margin:0; }
+.activityBasis { display:contents; }
+.energyEntry .activityBasis summary {
+  grid-column:2; grid-row:1; display:flex; align-items:center; gap:6px; min-height:44px;
+  color:var(--gold); font-size:.8125rem; list-style:none; cursor:pointer;
+}
+.activityBasis summary::-webkit-details-marker { display:none; }
+.activityBasis[open] summary span { transform:rotate(90deg); }
+.activityBasis>div { grid-column:1/-1; grid-row:3; padding:10px 12px; background:var(--surface-raised); border-radius:12px; }
+.activityWheel {
+  grid-column:1/-1; grid-row:2; display:grid; grid-template-columns:minmax(0,1fr) 44px; align-items:center;
+  gap:7px; padding:0 5px 0 8px; border:1px solid var(--line-soft); border-radius:16px; background:var(--surface-raised);
+}
+.activityWheelTrack {
+  --activity-row:68px;
+  height:calc(3 * var(--activity-row)); overflow:auto; overscroll-behavior-y:contain;
+  scroll-snap-type:y mandatory; scroll-padding-block:var(--activity-row); scrollbar-width:none;
+  padding-block:var(--activity-row); box-sizing:border-box;
+}
+.activityWheelTrack::-webkit-scrollbar { display:none; }
+.activityWheel .activityLevel {
+  display:grid; position:relative; box-sizing:border-box; align-items:center; width:100%;
+  height:var(--activity-row); min-height:44px; padding:4px 9px; border-radius:12px;
+  border:1px solid transparent; color:var(--warm-white); scroll-snap-align:center; cursor:pointer;
+}
+.activityWheel .activityLevel[data-selected] {
+  background:color-mix(in srgb,var(--gold) 13%,var(--surface));
+  border-color:color-mix(in srgb,var(--gold) 37%,transparent);
+}
+.activityWheel .activityLevel input {
+  position:absolute; width:1px; height:1px; min-height:0; opacity:0; margin:0; padding:0;
+}
+.activityWheel .activityLevel:has(:focus-visible) { outline:2px solid var(--gold); outline-offset:-2px; }
+.activityLevel>span { display:grid; gap:3px; transform:scale(.94); transform-origin:left center; transition:transform 150ms ease-out; }
+.activityLevel[data-selected]>span { transform:scale(1); }
+.activityLevel strong { font-size:1.0625rem; font-weight:620; line-height:1.2; }
+.activityLevel small { font-size:.8125rem; line-height:1.25; color:var(--muted); }
+.activityWheelArrows {
+  display:grid; overflow:hidden; border:1px solid var(--line-soft); border-radius:22px; background:var(--surface);
+}
+.activityWheelArrows button {
+  display:grid; min-width:44px; min-height:44px; place-items:center; padding:0; cursor:pointer;
+  background:transparent; color:var(--gold); border:0;
+}
+.activityWheelArrows button+button { border-top:1px solid var(--line-soft); }
+.activityWheelArrows button:disabled { color:var(--muted); opacity:.55; cursor:default; }
+.estimateMethods { display:flex; justify-content:flex-end; margin:2px 0; }
+.estimateMethods button { min-height:44px; border:0; background:transparent; color:var(--muted); cursor:pointer; }
+@media(prefers-reduced-motion:reduce) { .activityLevel>span { transition:none; } }
+
 .inlineBasis{display:grid;gap:6px;margin-block:8px 12px;color:var(--muted);font-size:13px;line-height:1.65}
 .inlineBasis p{margin:0}
 .inlineBasis p small{display:block}

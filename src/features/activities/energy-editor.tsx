@@ -42,8 +42,7 @@ function activityRecord(action:ActivityAction,key:string,prior?:ActivityRecord):
 function itemDraft(row:ActivityRecord):ActivityDraft{
  return {kind:"save_activity",key:row.id,id:row.id,version:row.version,date:row.date,name:row.name,calorieMode:row.calorieMode??undefined,caloriesKcal:row.caloriesKcal,exerciseActiveKcal:row.exerciseActiveKcal,exerciseRestingKcal:row.exerciseRestingKcal,durationMinutes:row.durationMinutes,completed:row.completed,sourceSystem:row.sourceSystem,sourceRecordId:row.sourceRecordId,sourceOccurredAt:row.sourceOccurredAt,timezone:row.timezone,inclusion:row.inclusion,initialBasis:row.inclusionBasis};
 }
-export function EnergyEditor({initial,activities=[],dayRecords=[],activityPreview,sources,removeSource,busy,error,save,saveBatch,submitLabel="保存",addActivity=false,quickStart=false,stepsEnabled=false,pending=false,onRetry,management,refreshDevice}:{
- quickStart?:boolean;
+export function EnergyEditor({initial,activities=[],dayRecords=[],activityPreview,sources,removeSource,busy,error,save,saveBatch,submitLabel="保存",addActivity=false,stepsEnabled=false,pending=false,onRetry,management,refreshDevice}:{
  refreshDevice?:()=>Promise<{presentation:EnergyPresentation;apply:()=>void}>;
  initial:EnergyAction;pending?:boolean;onRetry?:()=>void;management?:ReactNode;stepsEnabled?:boolean;activities?:ActivityRecord[];dayRecords?:EnergyDayRecord[];activityPreview?:ActivityRecord;sources:string[];removeSource:(label:string)=>Promise<SourceRemovalResult>;busy:boolean;error:string;save:(action:EnergyAction)=>void;saveBatch?:(actions:EnergyAction[])=>void;submitLabel?:string;addActivity?:boolean;
 }){
@@ -290,19 +289,17 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
  const retired=draft.kind.includes("energy_defaults")||draft.kind.includes("energy_profile"),blocked=pending||!!entryIssue||busy||confirmingAggregate||retired||!!(saveBatch&&daily&&unresolvedCount)||!!(singleRequires&&!selectedRelation);
  const missing= modes.entryMode==="total"&&projected?.totalKcal==null?"还没填当天总数":modes.entryMode==="components"&&projected?.restingKcal==null?"还没填当天静息":modes.activityMode==="total"&&projected?.activeKcal==null?"还没填活动合计":"有运动热量未知";
  const saveLabel=busy?submitLabel==="应用修改"?"正在应用…":"正在保存…":submitLabel;
- const fast=quickStart&&quick;
  const missingFacts=calculated&&!calculated.ok?calculated.missing:[];
  const supplementKind=missingFacts.includes("profile")?"profile":missingFacts.includes("weight")||missingFacts.includes("bodyFat")?"body":null;
  const supplementLabel=supplementKind==="profile"?"补填个人资料":"补填身体记录";
  const activityLevel=calculationSnapshot?.activityLevel??(requested?.activityLevel as ActivityLevel)??null;
- const activityControl=<ActivityLevelControl dateLabel={targetDate===today?"今天的活动量":"所选日的活动量"} value={activityLevel} change={activityLevel=>{setMethodTouched(true);estimate({kind:"daily",method:formula,activityLevel});setAggregateEpoch(epoch=>epoch+1);}}/>;
-
  const formulaControls=<RestingEstimate disabled={busy||pending||retired||confirmingAggregate} value={formula} change={method=>{
   setMethodTouched(true);
   estimate({kind:quick?"daily":"resting",method,...(quick?{activityLevel:requested?.activityLevel??calculationSnapshot?.activityLevel??undefined}:{})});
   setAggregateEpoch(epoch=>epoch+1);
- }} snapshot={fast?(calculationSnapshot??restingSnapshot):restingSnapshot} inlineBasis={fast} recalculate={()=>void recalculate()} loading={contextLoading}
-  message={fast?"":contextError||(missingFacts.length&&calculated&&!calculated.ok?calculated.message:"")} missing={missingFacts} supplement={setSupplement}/>;
+ }} snapshot={quick?(calculationSnapshot??restingSnapshot):restingSnapshot} inlineBasis={quick} recalculate={()=>void recalculate()} loading={contextLoading}
+  message={quick?"":contextError||(missingFacts.length&&calculated&&!calculated.ok?calculated.message:"")} missing={missingFacts} supplement={setSupplement}/>;
+ const activityControl=<ActivityLevelControl dateLabel={targetDate===today?"今天的活动量":"所选日的活动量"} value={activityLevel} basis={formulaControls} change={activityLevel=>{setMethodTouched(true);estimate({kind:"daily",method:formula,activityLevel});setAggregateEpoch(epoch=>epoch+1);}}/>;
  function addItem(){if(!daily)return;if(!quick&&modes.activityMode==="total"&&draft.activeKcal==null){setDraft(current=>({...current,activityMode:"activities"}));setAggregateEpoch(epoch=>epoch+1);}const key=crypto.randomUUID();setItems(rows=>[...rows,{key,kind:"save_activity",date:draft.date,name:"",calorieMode:"total",completed:true,timezone:draft.timezone}]);setExpanded(values=>new Set([...values,key]));}
  return <><form hidden={!!supplement} ref={form} data-entry-form={pending?"energy-pending":"energy"} data-energy-entry-layout={daily?"daily":"activity"} className={styles.form+" "+styles.energyEntry} aria-busy={busy||pending&&!error} onSubmit={event=>{event.preventDefault();void submit();}}>
 
@@ -311,20 +308,19 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
    {retired?<p role="alert">日常默认值和静息公式资料已停用，请取消这一项。</p>:daily||single?<>
    <section className={styles.entrySection}>{!daily&&<h3>{modes.entryMode==="total"?"总消耗":"静息与活动"}</h3>}
     {daily?<>
-     {fast&&<>{activityControl}<details className={styles.energyDetails}><summary>估算依据</summary>{formulaControls}</details></>}
-     {fast?<details className={styles.energyDetails}><summary>其他填写方式</summary><RestingMethodControl value={recordMode} change={changeMethod}/><ActivityMethodControl quick={quick} change={value=>value?enterQuick():leaveQuick()}/></details>:<RestingMethodControl value={recordMode} change={changeMethod}/>}
+     <RestingMethodControl value={recordMode} change={changeMethod}/>
      {recordMode==="manual"&&<>
       <div className={styles.manualEntryHeading}><span>{manualFormat==="total"?"全天总数":"静息与活动"}</span><button type="button" onClick={()=>changeManualFormat(manualFormat==="total"?"components":"total")}>{manualFormat==="total"?"分开填写":"只有总数？"}</button></div>
       <div className={styles.primaryReadings} >{modes.entryMode==="components"?<>{field("restingKcal","静息 千卡")}{activityField}</>:field("totalKcal","全天总消耗 千卡")}</div>
 
      </>}
      {restingMethod==="device"&&<>{deviceUsable&&<p className={styles.deviceFactStatus}>{dayPreview?.cumulative?"设备当前累计":"已采用的设备热量"}</p>}<div className={styles.deviceReadings} role="group" aria-label="设备热量">{(deviceUsable&&(deviceMetadata?.restingKcal!=null||deviceMetadata?.activeKcal!=null)?[["resting",deviceMetadata.restingKcal,"静息消耗"],["active",deviceMetadata.activeKcal,"活动消耗"]]:[["total",deviceUsable?draft.totalKcal:null,"总消耗"]]).map(([key,value,label])=><div key={key} data-device-reading={key}><span>{label}</span><strong><span data-energy-value>{energyValue(value)}</span> <small>千卡</small></strong></div>)}</div></>}
-     {recordMode==="estimate"&&restingMethod==="estimate"&&!fast&&formulaControls}
-     {recordMode==="estimate"&&!fast&&<ActivityMethodControl quick={quick} change={value=>value?enterQuick():leaveQuick()}/>}
-     {quick&&!fast&&activityControl}
+     {recordMode==="estimate"&&restingMethod==="estimate"&&!quick&&formulaControls}
+     {recordMode==="estimate"&&!quick&&<ActivityMethodControl quick={quick} change={value=>value?enterQuick():leaveQuick()}/>}
+     {quick&&<>{activityControl}<div className={styles.estimateMethods}><button type="button" onClick={leaveQuick}>运动明细 <span aria-hidden="true">›</span></button></div></>}
      {quick&&activities.some(row=>!row.deletedAt&&row.date===sourceDate)&&<p className={styles.hint}>已保存运动明细保留，本次估算不另加。选择“运动明细”可查看和编辑。</p>}
      {restingMethod==="device"&&<div className={styles.deviceControls}>{!deviceUsable&&<p>这一天还没有采用中的设备数据。<a href="/dashboard/sources" target="_blank" rel="noreferrer">连接或采用设备记录</a></p>}{refreshDevice&&<button type="button" disabled={deviceLoading} onClick={()=>void readAdoptedDevice()}>{deviceLoading?"正在读取…":"读取已采用设备值"}</button>}{deviceError&&<p role="alert">{deviceError}</p>}</div>}
-     <details className={styles.energyDetails}><summary>来源与备注</summary><div className={styles.fields}>{modes.entryMode==="components"?<>{source("restingSourceSystem","静息来源")}{source("activeSourceSystem","活动来源")}</>:source("sourceSystem","总消耗来源")}</div><label className={styles.notesField}>备注<textarea aria-label="消耗备注" maxLength={2000} rows={2} value={draft.notes??""} onChange={event=>set("notes",event.target.value||null)}/></label><label className={styles.entryTimezone}>时区<input aria-label="时区" maxLength={100} value={draft.timezone??""} onChange={event=>set("timezone",event.target.value)}/></label>{modes.entryMode==="components"&&restingMethod!=="device"&&<details ref={methodMenu} className={styles.energyDetails}><summary>活动填写方式 · {modes.activityMode==="total"?"手填":"运动累计"}</summary><div className={styles.advancedMethod}>{modes.activityMode==="total"?<button type="button" onClick={()=>void requestActivityAccumulation()}>改用运动累计</button>:<button type="button" onClick={restoreManualAggregate}>改为手填活动合计</button>}{modes.activityMode==="activities"&&<p className={styles.aggregateHint}>{accumulation?.activities.length?"由"+accumulation.activities.length+"项运动相加":"暂无运动明细"}</p>}</div></details>}</details>
+     <details className={styles.energyDetails}><summary>{quick?"备注":"来源与备注"}</summary>{!quick&&<div className={styles.fields}>{modes.entryMode==="components"?<>{source("restingSourceSystem","静息来源")}{source("activeSourceSystem","活动来源")}</>:source("sourceSystem","总消耗来源")}</div>}<label className={styles.notesField}>备注<textarea aria-label="消耗备注" maxLength={2000} rows={2} value={draft.notes??""} onChange={event=>set("notes",event.target.value||null)}/></label><label className={styles.entryTimezone}>时区<input aria-label="时区" maxLength={100} value={draft.timezone??""} onChange={event=>set("timezone",event.target.value)}/></label>{modes.entryMode==="components"&&restingMethod!=="device"&&<details ref={methodMenu} className={styles.energyDetails}><summary>活动填写方式 · {modes.activityMode==="total"?"手填":"运动累计"}</summary><div className={styles.advancedMethod}>{modes.activityMode==="total"?<button type="button" onClick={()=>void requestActivityAccumulation()}>改用运动累计</button>:<button type="button" onClick={restoreManualAggregate}>改为手填活动合计</button>}{modes.activityMode==="activities"&&<p className={styles.aggregateHint}>{accumulation?.activities.length?"由"+accumulation.activities.length+"项运动相加":"暂无运动明细"}</p>}</div></details>}</details>
 
     </>:<div className={styles.contextReadings}><div><span>静息 千卡</span><strong>{energyValue(day?.restingKcal)}</strong></div><div><span>{modes.entryMode==="total"?"录入总数":"活动合计"} · 千卡</span><strong>{energyValue(modes.entryMode==="total"?day?.totalKcal:modes.activityMode==="total"?day?.activeKcal:autoActive)}</strong></div></div>}
    </section>
@@ -357,12 +353,12 @@ export function EnergyEditor({initial,activities=[],dayRecords=[],activityPrevie
   <div className={styles.stickyTotal} data-entry-footer>
    <div role="group" aria-label="当天总消耗">
     <span>{daily?quick?"预计全天消耗":"合计":"当天总消耗"}</span>
-    {pending?(!error&&<LocalLoading/>):(!fast||total!=null)&&<strong>{energyValue(total)} <small>千卡</small></strong>}
+    {pending?(!error&&<LocalLoading/>):(!quick||total!=null)&&<strong>{energyValue(total)} <small>千卡</small></strong>}
     {!pending&&entryIssue&&<small role="status">{entryIssue}</small>}
-    {!pending&&fast&&supplementKind&&<div className={styles.footerRecovery}>
+    {!pending&&quick&&supplementKind&&<div className={styles.footerRecovery}>
       <button type="button"  disabled={busy} onClick={()=>setSupplement(supplementKind)}>{supplementLabel}</button>
     </div>}
-    {!pending&&fast&&contextError&&<div className={styles.footerRecovery}><button type="button" onClick={()=>void recalculate()}>重试读取</button></div>}
+    {!pending&&quick&&contextError&&<div className={styles.footerRecovery}><button type="button" onClick={()=>void recalculate()}>重试读取</button></div>}
     {!pending&&!entryIssue&&(unresolvedCount>0||total==null)&&<small>{unresolvedCount?unresolvedCount+"项运动待核对":missing+"，可保存已有部分"}</small>}
     {error&&<p role="alert" className={styles.error}>{error}</p>}
    </div>

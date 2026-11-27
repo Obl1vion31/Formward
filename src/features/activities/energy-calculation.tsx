@@ -11,7 +11,7 @@ import { BodyFatContext } from "../measurements/visibility";
 import { trackPopoverPosition } from "@/components/anchored-popover";
 import { confirmAction } from "@/components/confirmation-state";
 import { LocalLoading } from "@/components/local-loading";
-import { calculateEnergy, activityLevels, formulaLabel, type CalculationContext, type CalculationMethod, type CalculationSnapshot, type RestingMethod } from "./calculation-model";
+import { calculateEnergy, activityLevels, formulaLabel, type ActivityLevel, type CalculationContext, type CalculationMethod, type CalculationSnapshot, type RestingMethod } from "./calculation-model";
 import glass from "@/components/glass-controls.module.css";
 import { useSlidingSelection } from "@/components/sliding-selection";
 import styles from "./energy.module.css";
@@ -75,8 +75,62 @@ export function ActivityEnergyHelp(){
  const id=useId();
  return <><button type="button" className={styles.calculationInfo} popoverTarget={id} aria-label="活动热量说明"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 1.5-2.5 2-2.5 4M12 16v1"/></svg></button><div id={id} popover="auto" className={styles.fieldHelp} role="dialog" aria-label="活动热量说明"><h4>活动热量</h4><p>填写当天已知的活动热量；不知道可以留空，明确没有活动才填0。</p><p>另记运动明细时，需核对是否已包含在活动合计中，避免重复相加。</p></div></>;
 }
-export function ActivityLevelControl({value,change,dateLabel="今天的活动量"}:{value:string|null;change:(value:typeof activityLevels[number]["id"])=>void;dateLabel?:string}) {
- return <section className={styles.activityLevels}><div className={styles.activityHeading}><h3>{dateLabel}</h3></div><div role="radiogroup" aria-label="全天活动量" >{activityLevels.map(level=><label key={level.id} className={styles.activityLevel}><input type="radio" name="energy-activity-level" value={level.id} checked={value===level.id} onChange={()=>change(level.id)}/><span><strong>{level.label}</strong><small>{level.example}</small></span></label>)}</div><p className={styles.hint}>全天消耗包含日常活动和训练。</p></section>;
+export function ActivityLevelControl({ value, change, dateLabel = "今天的活动量", basis }: {
+ value:ActivityLevel|null; change:(level:ActivityLevel)=>void; dateLabel?:string; basis:React.ReactNode;
+}) {
+ const id=useId(), track=useRef<HTMLDivElement>(null), timer=useRef<number>(0), scrolling=useRef(false);
+ const index=activityLevels.findIndex(level=>level.id===value);
+ const examples=["大部分时间坐着，偶尔走动","通勤、散步或做家务","较长时间走路，或做了中等强度训练","体力工作，或长时间高强度训练"];
+
+ function choose(next:number) {
+  const level=activityLevels[next];
+  if(!level)return;
+  scrolling.current=false;
+  window.clearTimeout(timer.current);
+  if(level.id!==value)change(level.id);
+ }
+ useLayoutEffect(()=>{
+  const node=track.current;
+  const row=node?.firstElementChild as HTMLElement|undefined;
+  if(node&&row)node.scrollTo({top:row.offsetHeight*(index<0?1:index),behavior:"instant"});
+ },[index]);
+ useEffect(()=>()=>window.clearTimeout(timer.current),[]);
+
+ function finishScroll() {
+  const node=track.current, row=node?.firstElementChild as HTMLElement|undefined;
+  if(!scrolling.current||!node||!row||row.offsetHeight===0)return;
+  choose(Math.min(activityLevels.length-1,Math.max(0,Math.round(node.scrollTop/row.offsetHeight))));
+ }
+ function onScroll() {
+  if(!scrolling.current)return;
+  window.clearTimeout(timer.current);
+  timer.current=window.setTimeout(finishScroll,140);
+ }
+
+ return <section className={styles.activityLevels} data-activity-wheel>
+  <details className={styles.activityBasis}>
+   <summary>估算依据 <span aria-hidden="true">›</span></summary><div>{basis}</div>
+  </details>
+  <h3 id={id}>{dateLabel}</h3>
+  <div className={styles.activityWheel}>
+   <div ref={track} className={styles.activityWheelTrack} role="radiogroup" aria-labelledby={id}
+    onScroll={onScroll} onTouchStart={()=>{scrolling.current=true;}} onWheel={()=>{scrolling.current=true;}}>
+    {activityLevels.map((level,position)=><label key={level.id} className={styles.activityLevel} data-selected={value===level.id||undefined}>
+      <input type="radio" name={id} value={level.id} aria-label={level.label} aria-describedby={id+"-"+position}
+       checked={value===level.id} onChange={()=>choose(position)}/>
+      <span><strong>{level.label}</strong><small id={id+"-"+position}>{examples[position]}</small></span>
+    </label>)}
+   </div>
+   <div className={styles.activityWheelArrows}>
+    <button type="button" aria-label="上一档" disabled={index===0} onClick={()=>choose(index<0?0:index-1)}>
+     <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="m3 10 5-5 5 5" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>
+    </button>
+    <button type="button" aria-label="下一档" disabled={index===activityLevels.length-1} onClick={()=>choose(index<0?2:index+1)}>
+     <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="m3 6 5 5 5-5" fill="none" stroke="currentColor" strokeWidth="1.5"/></svg>
+    </button>
+   </div>
+  </div>
+ </section>;
 }
 function CalculationBasis({snapshot}:{snapshot:CalculationSnapshot|null}) {
  const reference=(label:string,ref:CalculationSnapshot["weight"],unit:string)=><p>{label} {Number(ref.value)} {unit}<small>{ref.date} · {ref.period==="daytime"?"晨间":"晚间"} · {ref.source??"来源未填写"}</small></p>;
@@ -86,7 +140,7 @@ function CalculationBasis({snapshot}:{snapshot:CalculationSnapshot|null}) {
   <p className={styles.formulaText}>{snapshot.method==="cunningham"?"500 + 22 × 体重 × (1 − 体脂率 ÷ 100)":"10 × 体重 + 6.25 × 身高 − 5 × 年龄 + 性别项"}</p>
   {reference("体重",snapshot.weight,"kg")}{snapshot.bodyFat&&reference("体脂率",snapshot.bodyFat,"%")}
   {snapshot.profile&&<p>身高 {Number(snapshot.profile.heightCm)} cm · {snapshot.profile.age} 岁 · {snapshot.profile.sexForCalculation==="male"?"男性项 +5":"女性项 −161"}<small>个人资料版本 {snapshot.profile.version} · 年龄按 {snapshot.date} 计算</small></p>}
-  {snapshot.factor&&<p>全天 = 系统静息 × {snapshot.factor}<small>{level?.label} · 包含日常活动和训练</small></p>}
+  {snapshot.factor&&<p>全天 = 系统静息 × {snapshot.factor}<small>{level?.label}</small></p>}
   <p>保存后结果固定，资料变化需主动重新计算。</p>
  </>;
 }

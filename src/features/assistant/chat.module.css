@@ -230,7 +230,14 @@
 }
 .navTabs button[aria-selected=true] .tierBadge { color: inherit; }
 .navTabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
-.tabBadge, .navSelect { display: none; }
+.navTabs button { position:relative; }
+.tabBadge {
+ position:absolute; inset-block-start:1px; inset-inline-end:5px;
+ display:grid; place-items:center; min-inline-size:16px; block-size:16px; padding-inline:3px;
+ border-radius:12px; background:var(--gold); color:var(--surface);
+ font-size:10px; line-height:1; font-weight:700; font-variant-numeric:tabular-nums;
+}
+.navSelect { display:none; }
 
 
 .message[data-new-message=true]{transform-origin:bottom right;animation:message-arrive 200ms cubic-bezier(.2,.8,.2,1) both}@keyframes message-arrive{from{opacity:0;transform:translate(6px,8px) scale(.96)}to{opacity:1;transform:translate(0,0) scale(1)}}@media(prefers-reduced-motion:reduce){.message[data-new-message=true]{animation:none}}

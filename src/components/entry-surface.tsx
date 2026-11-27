@@ -8,6 +8,8 @@ import {DraftGuardContext,DraftCloseContext,InspectorBusyContext,InspectorStepCo
 import {MealEditor} from "@/features/meals/meal-editor";
 import {MeasurementEntry,MeasurementEntryHeader} from "@/features/measurements/measurement-entry";
 import {localMeasurementDate} from "@/features/measurements/entry-state";
+import {BodyFatContext} from "@/features/measurements/visibility";
+import {loadPreferencesAction} from "@/app/dashboard/measurements/preferences-actions";
 import bodyStyles from "@/features/measurements/measurements-view.module.css";
 import {EnergyEditor} from "@/features/activities/energy-editor";
 import {WorkspaceSourceContext} from "./workspace-frame-state";
@@ -44,5 +46,28 @@ function PendingFields({path,date,period,estimate,failed,retry}:{path:string;dat
  const sourcePilot=useContext(WorkspaceSourceContext);
  const[slow,setSlow]=useState(false),[attempt,setAttempt]=useState(0);useEffect(()=>{const timer=setTimeout(()=>setSlow(true),8000);return()=>clearTimeout(timer);},[attempt]);
  const onRetry=failed||slow?()=>{setSlow(false);setAttempt(value=>value+1);retry();}:undefined,error=failed?"读取失败，请重试。":"";
- return <div className={path.endsWith("/meals")?"pending-entry-fields pending-meal-fields":"pending-entry-fields"} aria-busy={!failed} aria-label="读取录入所需数据">{path.endsWith("/meals")?<MealEditor pending onRetry={onRetry} initial={{date:date??localMeasurementDate(),mealType:"",items:[]}} foods={[]} error={error} busy={false} save={async()=>{}}/>:path.endsWith("/energy")?<EnergyEditor pending quickStart={estimate} onRetry={onRetry} initial={{kind:"save_energy_day",date:date??localMeasurementDate(),entryMode:estimate?"total":"components",...(estimate?{calculation:{kind:"daily",method:"auto"}}:{})}} stepsEnabled={sourcePilot} sources={[]} removeSource={async()=>({ok:false,error:"正在读取"})} busy={false} error={error} save={()=>{}}/>:<div className={bodyStyles.drawerContent} data-record-intent="create"><MeasurementEntry pending onRetry={onRetry} readError={error} date={date??localMeasurementDate()} timezone="Asia/Shanghai" records={[]} sources={[]} choices={{}} initialPeriod={period} actions={{save:async()=>({ok:false,error:"正在读取"}),removeSource:async()=>({ok:false,error:"正在读取"})}} onUpdated={()=>{}} onChoose={()=>{}}/></div>}</div>;
+ return <div className={path.endsWith("/meals")?"pending-entry-fields pending-meal-fields":"pending-entry-fields"} aria-busy={!failed} aria-label="读取录入所需数据">{path.endsWith("/meals")?<MealEditor pending onRetry={onRetry} initial={{date:date??localMeasurementDate(),mealType:"",items:[]}} foods={[]} error={error} busy={false} save={async()=>{}}/>:path.endsWith("/energy")?<EnergyEditor pending onRetry={onRetry} initial={{kind:"save_energy_day",date:date??localMeasurementDate(),entryMode:estimate?"total":"components",...(estimate?{calculation:{kind:"daily",method:"auto"}}:{})}} stepsEnabled={sourcePilot} sources={[]} removeSource={async()=>({ok:false,error:"正在读取"})} busy={false} error={error} save={()=>{}}/>:<PendingMeasurement date={date??localMeasurementDate()} period={period} retry={onRetry} error={error}/>}</div>;
+}
+
+function PendingMeasurement({date, period, retry, error}:{
+ date:string; period:"daytime"|"evening"; retry?:()=>void; error:string;
+}){
+ const [showFat,setShowFat]=useState(false);
+ useEffect(()=>{
+  let active=true, revision=0;
+  const read=async()=>{
+   const request=++revision;
+   try {
+    const result=await loadPreferencesAction();
+    if(active&&request===revision&&result.ok) setShowFat(result.data.showBodyFat);
+   } catch { /* 基本体重字段仍可显示，正式表单使用页面加载的账号偏好。 */ }
+  };
+  void read();
+  window.addEventListener("formward-body-preferences",read);
+  return()=>{active=false;window.removeEventListener("formward-body-preferences",read);};
+ },[]);
+ return <BodyFatContext value={showFat}><div className={bodyStyles.drawerContent} data-record-intent="create">
+  <MeasurementEntry pending onRetry={retry} readError={error} date={date} timezone="Asia/Shanghai" records={[]} sources={[]} choices={{}} initialPeriod={period}
+   actions={{save:async()=>({ok:false,error:"正在读取"}),removeSource:async()=>({ok:false,error:"正在读取"})}} onUpdated={()=>{}} onChoose={()=>{}}/>
+ </div></BodyFatContext>;
 }

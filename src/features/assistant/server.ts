@@ -17,6 +17,7 @@ import { measurementDisplay } from "../measurements/editing";
 import { localMeasurementDate } from "../measurements/entry-state";
 import { addCalendarDays } from "../measurements/calendar";
 import { reminderCatalog } from "../dashboard/daily-reminders";
+import { loadEnergyDeviceCoverage } from "../data-sources/state";
 import { listRecordOperations } from "../records/operations";
 import { requireActiveAiToken } from "../auth/ai-tokens";
 import { lockOwner } from "../auth/owner-lock";
@@ -113,7 +114,9 @@ export async function readAssistantContext(db: Database, user: { id: string; cre
   const meals = await readMealSnapshot(db, user.id, dates);
   const energy = await readEnergySnapshot(db, user.id, dates);
   const records = await listMeasurements(db, user.id, dates);
-  const context = assistantContext(reminderCatalog(meals.meals, records.map(measurementDisplay), energy), now, zone, user.createdAt.toISOString());
+  const catalog = reminderCatalog(meals.meals, records.map(measurementDisplay), energy);
+  const device = !catalog.energy.some(day=>day.date===yesterday&&day.hasTotal) ? await loadEnergyDeviceCoverage(db,user.id,now) : null;
+  const context = assistantContext(catalog, now, zone, user.createdAt.toISOString(), device);
   const ignored = await db.select().from(assistantReminderDismissal).where(and(eq(assistantReminderDismissal.userId, user.id), eq(assistantReminderDismissal.date, yesterday)));
   const day = await db.select().from(mealDay).where(and(eq(mealDay.userId, user.id), eq(mealDay.date, yesterday)));
   if (ignored.length || day[0]?.status === "complete") context.pending = context.pending.filter(item => item.category !== "meals");

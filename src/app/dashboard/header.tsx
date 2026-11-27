@@ -15,6 +15,7 @@ import { DataSourcesPanel } from "@/features/data-sources/panel";
 import { AccountSurface } from "@/features/auth/account-surfaces";
 import { useMobileMode } from "@/components/use-mobile-mode";
 import { useChartTransition } from "@/components/chart-transition-state";
+import { useWorkspaceArrival } from "@/components/workspace-navigation";
 import {useAppInformation} from "@/components/app-information";
 import { LocalLoading } from "@/components/local-loading";
 import { isMealLibrary } from "@/features/meals/library-location";
@@ -25,7 +26,8 @@ export function DashboardHeader({ email, owner = false, sourcePilot = false }: {
   const openInformation = useAppInformation();
   const actualPath = usePathname(), mobile = useMobileMode(), [settings, setSettings] = useState<false | "profile" | "account" | "sources">(false), [group, setGroup] = useState<Group>("root");
   const { hide: hideAssistant, source } = useAssistant(), chart = useChartTransition();
-  const pathname = chart.displayPath ?? source?.path ?? actualPath;
+  const arrival = useWorkspaceArrival();
+  const pathname = (chart.scene || chart.forwardDestination || chart.returningToOverview ? chart.displayPath : arrival?.path) ?? source?.path ?? actualPath;
   const params = useSearchParams();
   const library = pathname === "/dashboard/meals" && isMealLibrary(source ? new URLSearchParams(source.query) : params);
   const previousGroup = useRef<Group>("root"), menuClose = useRef<() => Promise<void>>(() => Promise.resolve()), [pendingAccount, setPendingAccount] = useState<string | null>(null);
@@ -61,9 +63,10 @@ export function DashboardHeader({ email, owner = false, sourcePilot = false }: {
 }
 export function DashboardDock() {
   const actualPath = usePathname();
-  const { displayPath } = useChartTransition();
+  const chart = useChartTransition();
   const { source } = useAssistant();
-  const pathname = displayPath ?? source?.path ?? actualPath;
+  const arrival = useWorkspaceArrival();
+  const pathname = (chart.scene || chart.forwardDestination || chart.returningToOverview ? chart.displayPath : arrival?.path) ?? source?.path ?? actualPath;
   const mobile = useMobileMode();
   const dock = useRef<HTMLDivElement>(null);
   const showDock = !reviewPath(pathname) && pathname !== "/dashboard/visual-review";

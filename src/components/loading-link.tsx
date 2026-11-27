@@ -7,13 +7,14 @@ import {draftIsDirty,confirmDraftDiscard} from "./draft-guard";
 import {reopenCurrentRecordTask} from './record-intent-client';
 import type { ComponentProps } from "react";
 import {useWorkspaceReturn,type ReturnScope} from "./workspace-return";
+import {usePrepareWorkspace} from "./workspace-navigation";
 
 
 
 
 export function LoadingLink({ children,beforeNavigate,onPendingChange,returnScope,...props }: ComponentProps<typeof Link>&{beforeNavigate?:()=>Promise<boolean|void>;onPendingChange?:(pending:boolean)=>void;returnScope?:ReturnScope}) {
   const router=useRouter(),[pending,startTransition]=useTransition();
-  const returns=useWorkspaceReturn(),link=useRef<HTMLAnchorElement>(null);
+  const returns=useWorkspaceReturn(),prepare=usePrepareWorkspace(),link=useRef<HTMLAnchorElement>(null);
   return <Link {...props} onClick={event=>{link.current=event.currentTarget;props.onClick?.(event);}} data-workspace-origin-link={typeof props.href==="string"&&(returnScope||/[?&]entry=/.test(props.href))?props.href:undefined} prefetch={props.prefetch ?? (typeof props.href==="string"&&/[?&]entry=/.test(props.href)?false:undefined)} onNavigate={event=>{
     let intercepted=false;
     props.onNavigate?.({preventDefault(){intercepted=true;event.preventDefault();}});
@@ -22,7 +23,7 @@ export function LoadingLink({ children,beforeNavigate,onPendingChange,returnScop
     const remember=props.replace?undefined:returns?.capture(href,link.current,returnScope);
     if(!draftIsDirty()&&!beforeNavigate){
       if(reopenCurrentRecordTask(href))event.preventDefault();
-      else remember?.();
+      else { remember?.(); prepare(href); }
       return;
     }
     event.preventDefault();
@@ -31,6 +32,7 @@ export function LoadingLink({ children,beforeNavigate,onPendingChange,returnScop
       if(beforeNavigate&&await beforeNavigate()===false)return;
       if(!reopenCurrentRecordTask(href)){
         remember?.();
+        prepare(href);
         startTransition(()=>router[props.replace?"replace":"push"](href,{scroll:props.scroll}));
       }
     });

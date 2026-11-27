@@ -29,13 +29,13 @@
   --tour-forward:#815e27;
 }
 .tour::backdrop { background:transparent; pointer-events:none; }
-.tour[data-guide-phase=waiting] { background:var(--tour-shade); }
-.tourFrame {
-  position:absolute; top:0; left:0; width:0; height:0; pointer-events:none;
-  box-shadow:0 0 0 200vmax var(--tour-shade);
-  outline:1.5px solid var(--tour-line);
-}
-.tour[data-guide-phase=waiting] .tourFrame { visibility:hidden; }
+.tour:not([data-guide-aperture]) { background:var(--tour-shade); }
+.tourAperture,.tourFrame { position:absolute; top:0; left:0; width:0; height:0; pointer-events:none; }
+.tourAperture { visibility:hidden; box-shadow:0 0 0 200vmax var(--tour-shade); }
+.tour[data-guide-aperture] .tourAperture { visibility:visible; }
+.tourFill { position:absolute; inset:0; border-radius:inherit; background:var(--tour-shade); opacity:1; }
+.tourFrame { visibility:hidden; outline:1.5px solid var(--tour-line); }
+.tour[data-guide-framed] .tourFrame { visibility:visible; }
 
 .tourTip { position:absolute; width:min(310px,calc(100% - 32px)); top:16px; right:16px; pointer-events:none; }
 .tourSurface {

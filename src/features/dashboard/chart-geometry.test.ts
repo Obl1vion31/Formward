@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { chartScale } from "@/components/chart-scale";
-import { compactReferenceTick, dayReadoutLeft, morningChangeScale, spacedTicks } from "./chart-geometry";
+import { compactReferenceTick, morningChangeScale, spacedTicks } from "./chart-geometry";
 
 test("净收支柱从零起算并覆盖盈余与缺口，未知不改变数轴", () => {
   for (const values of [[], [0], [-156, -322, -1561], [1600, 2400], [-1000, 0, 200], [-100000, 1]]) {
@@ -39,14 +39,5 @@ test("手机用整档参照，紧凑刻度不把绘图边界当作数据", () =>
     const tick = compactReferenceTick(scale, 56);
     assert.ok(tick !== null && tick !== 0 && scale.ticks.includes(tick));
     assert.ok(Math.abs(tick) * 56 / (scale.max - scale.min) >= 18);
-  }
-});
-
-test("日期明细靠边换侧，窄屏中间没有一整侧时仍留在绘图区内", () => {
-  assert.ok(dayReadoutLeft(80, 1120, 226, false) > 80);
-  assert.ok(dayReadoutLeft(1070, 1120, 226, false) + 226 < 1070);
-  for (const x of [48, 150, 275]) {
-    const left = dayReadoutLeft(x, 288, 212, true);
-    assert.ok(left >= 8 && left + 212 <= 280);
   }
 });

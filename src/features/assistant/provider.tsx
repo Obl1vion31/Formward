@@ -6,8 +6,10 @@ import { useWorkspaceReturn } from "@/components/workspace-return";
 import { LoadingLink } from "@/components/loading-link";
 import { confirmationIsOpen } from "@/components/confirmation-state";
 import { dismissAssistantReminderAction } from "@/app/dashboard/assistant-actions";
+import { completeAssistantMealDayAction } from "@/app/dashboard/meals/actions";
+import { acknowledgeRecordChanges } from "@/components/record-change-client";
 import { localMeasurementDate } from "../measurements/entry-state";
-import { assistantAvailable, assistantPath, type AssistantContext } from "./model";
+import { assistantAvailable, assistantPath, type AssistantContext, type AssistantItem } from "./model";
 import { MOBILE_MEDIA } from "@/components/use-mobile-mode";
 import { AssistantStateContext } from "./context";
 import { useAssistantPageNavigation } from "./page-navigation";
@@ -98,6 +100,26 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
     try { preferenceStore()?.setItem("formward:assistant:changed:" + accountId, String(Date.now())); } catch {}
     return "";
   }, [accountId, apply]);
+  const completeMealDay = useCallback(async (item: AssistantItem, operationId: string) => {
+    if (!item.mealConfirmation) return "请查看当天餐次。";
+    const result = await completeAssistantMealDayAction({ ...item.mealConfirmation, date: item.date, operationId });
+    if (!result.ok) {
+      revision.current++;
+      void refresh(true);
+      return result.error;
+    }
+    if (result.data.status !== "complete") {
+      revision.current++;
+      void refresh(true);
+      return "餐次已有变化，请重新核对。";
+    }
+    revision.current++;
+    if (dataRef.current) apply({ ...dataRef.current, pending: dataRef.current.pending.filter(row => row.id !== item.id) });
+    const key = "mealDay:" + item.date;
+    acknowledgeRecordChanges([key], result.data.version === null ? [] : [{ key, version: String(result.data.version), summary: "已记全" }]);
+    try { preferenceStore()?.setItem("formward:assistant:changed:" + accountId, String(Date.now())); } catch {}
+    return "";
+  }, [accountId, apply, refresh]);
   useEffect(() => {
     const initialFrame=requestAnimationFrame(()=>{setLocal(deviceTime());setClock(Date.now());void refresh();});
     const changed = () => { revision.current++; void refresh(true); };
@@ -137,7 +159,7 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
   }, [available, linkedTrend, open, error, pending, accountId]);
   useEffect(() => { if (!toast || paused) return; const timer = setTimeout(() => setToast(false), 5000); return () => clearTimeout(timer); }, [toast, paused]);
   useEffect(() => () => { generation.current++; request.current?.abort(); }, []);
-  const tasks = useMemo(() => ({ data: data ? { ...data, pending } : null, error, loading, retry: () => { void refresh(true); }, dismissItem }), [data, pending, error, loading, refresh, dismissItem]);
+  const tasks = useMemo(() => ({ data: data ? { ...data, pending } : null, error, loading, retry: () => { void refresh(true); }, dismissItem, completeMealDay }), [data, pending, error, loading, refresh, dismissItem, completeMealDay]);
   const yesterday = pathname === "/dashboard" ? pending.find(item => item.mealStatus) : undefined;
   const value = useMemo(() => ({ open: open && available, count: pending.length, toggle, hide, openMealTask, source: page?.source ?? null, page, backFromPage, completePageMotion, tasks }), [open, available, pending.length, toggle, hide, openMealTask, page, backFromPage, completePageMotion, tasks]);
   return <AssistantChatProvider accountId={accountId} enabled={chatEnabled} initialEntitlement={initialEntitlement} open={pageOpen || (open && available)} photoTask={pageTask??mealTask}><AssistantStateContext.Provider value={value}>{children}

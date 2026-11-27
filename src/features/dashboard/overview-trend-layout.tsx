@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ChartRanges } from "@/components/chart-ranges";
 import { OverviewLegend } from "@/components/chart-legend";
-import { signedRecordNumber } from "@/components/number-format";
+import { formatIntegerNumber, formatRecordNumber, signedRecordNumber } from "@/components/number-format";
 import { addCalendarDays } from "../measurements/calendar";
 import { BalanceReading } from "./day-readout";
 import { missingBalanceReason, morningChangeReading, shortDate } from "./day-readings";
@@ -25,11 +25,11 @@ function positionStatistics(button: HTMLButtonElement, panel: HTMLDivElement) {
   panel.style.setProperty("--statistics-max-height", (opensAbove ? above : below) + "px");
 }
 
-export function OverviewTrendLayout({ date, day, range, mobile, changeRange, view, custom, children }: {
+export function OverviewTrendLayout({ date, day, today, range, changeRange, view, custom, children }: {
   date: string;
   day?: OverviewDay;
   range: string;
-  mobile?: boolean | null;
+  today?: string;
   changeRange: (range: string) => void;
   view?: () => void;
   custom?: ReactNode;
@@ -73,38 +73,56 @@ export function OverviewTrendLayout({ date, day, range, mobile, changeRange, vie
       </button>
     </div>
     {custom}
-    {mobile!==true&&<div className="desktop-only"><div className={styles.overviewComparison} aria-label="选中日读数" data-selected-date={date} data-overview-comparison><SelectedDayRow date={date} day={day} pending={pending}/></div></div>}
+    <SelectedDayRow date={date} day={day} today={today} view={view} pending={pending}/>
     <div id={statisticsId} ref={statisticsPanel} className={styles.statisticsPanel} data-overview-statistics
       popover="auto" onToggle={event => setStatisticsOpen(event.newState === "open")}>
-      <OverviewComparison date={date} day={day} pending={pending} mobile={!!mobile}/>
+      <OverviewComparison date={date} day={day} pending={pending}/>
       {coverage !== undefined && coverage < 7 && <p className={styles.statisticsBasis}>已计 {coverage}/7 天</p>}
     </div>
     <div className={styles.overviewToolbar} data-overview-toolbar data-guide-flow>
       <div className={styles.overviewLegend} data-overview-legend><OverviewLegend/><span>千卡</span></div>
-      <button type="button" data-guide-target="overview-record" disabled={pending || !date} onClick={view}>查看记录 →</button>
+
     </div>
     <div data-overview-plot data-guide-target="overview-trend" data-guide-flow>{children}</div>
-    {!pending&&<div className={styles.phoneReadout}>
-      <button type="button" disabled={pending||!date} onClick={view} aria-label={date?"查看 "+date+" 当日记录":"查看当日记录"}>
-        <strong>{date?shortDate(date):"—"}</strong>
-        <span><span>当天收支 <ComparisonBalance balance={day?.energyBalance??null} pending={pending} reason={day&&missingBalanceReason(day)}/></span>
-          <span><ComparisonWeight label="次晨" value={day?.weightChangeKg??null} status={day?morningChangeReading(day):"无晨重记录"} pending={pending}/></span></span>
-        <span aria-hidden="true">›</span>
-      </button>
-    </div>}
+
   </>;
 }
 
-function SelectedDayRow({date,day,pending}:{date:string;day?:OverviewDay;pending:boolean}){
-  if (pending && !date) return <div className={styles.comparisonRow} data-overview-day aria-busy="true"/>;
-  return <div className={styles.comparisonRow} data-overview-day>
-    <div className={styles.comparisonPeriod}><span>选中</span><time className={styles.comparisonDates} dateTime={date||undefined} title={date||undefined}>{date?shortDate(date):"—"}</time></div>
-    <div data-overview-day-energy><ComparisonBalance balance={day?.energyBalance??null} pending={pending} reason={day&&missingBalanceReason(day)}/></div>
-    <div data-overview-day-weight><ComparisonWeight label="次晨" value={day?.weightChangeKg??null} status={day?morningChangeReading(day):"无晨重记录"} pending={pending}/></div>
-  </div>;
+function SelectedDayRow({date, day, today, view, pending}:{date:string;day?:OverviewDay;today?:string;view?:()=>void;pending:boolean}) {
+  const balance = day?.energyBalance ?? null;
+  const weight = day?.weightChangeKg ?? null;
+  const intake = day?.nutrition?.values.caloriesKcal ?? null;
+  const expenditure = day?.energy.totalKcal ?? null;
+  const weightPair = day?.morning?.weightKg != null && day.nextMorning?.weightKg != null && !day.ambiguous;
+  const [year, month, dateOfMonth] = date.split("-").map(Number);
+  const label = year ? month + "月" + dateOfMonth + "日" : "选中日期";
+  return <section className={styles.selectedDay} data-overview-comparison data-overview-day data-selected-date={date}
+    aria-label="选中日读数" aria-busy={pending || undefined}>
+    <time className={styles.selectedDate} dateTime={date || undefined}>{label}</time>
+    <div className={styles.selectedMetric} data-overview-day-energy>
+      <span className={styles.metricLabel}>当天热量</span>
+      <ComparisonBalance balance={balance} pending={pending} reason={day&&missingBalanceReason(day)}/>
+      <span className={styles.metricDetail}>
+        {!pending && (intake!==null || expenditure!==null) && <>
+          <span>{day?.mealDayStatus==="complete"&&!day.nutrition?.incomplete.caloriesKcal?"摄入":"已记摄入"} {day?.displayEnergy?.intake??formatIntegerNumber(intake)}</span>
+          <span>{day?.energy.cumulative?"消耗累计":"消耗"} {day?.displayEnergy?.expenditure??formatIntegerNumber(expenditure)}</span>
+        </>}
+      </span>
+    </div>
+    <div className={styles.selectedMetric} data-overview-day-weight>
+      <span className={styles.metricLabel}>次晨体重</span>
+      <span className={styles.comparisonValue}>{pending ? "—" : weight === null
+        ? (today && date>=today ? "次晨未到" : day ? morningChangeReading(day) : "无晨重记录")
+        : weight === 0 ? "持平" : <b aria-label={(weight<0?"下降 ":"上升 ")+formatRecordNumber(Math.abs(weight))+" kg"}>
+          {weight<0?"↓":"↑"} {formatRecordNumber(Math.abs(weight))} <small>kg</small>
+        </b>}</span>
+      <span className={styles.metricDetail}>{!pending&&weightPair&&<> {formatRecordNumber(day.morning!.weightKg)} → {formatRecordNumber(day.nextMorning!.weightKg)} kg</>}</span>
+    </div>
+    <button type="button" className={styles.selectedRecord} data-guide-target="overview-record" disabled={pending||!date} onClick={view}>查看记录 <span aria-hidden="true">›</span></button>
+  </section>;
 }
 
-function OverviewComparison({ date, day, pending, mobile }: { date: string; day?: OverviewDay; pending: boolean; mobile: boolean }) {
+function OverviewComparison({ date, day, pending }: { date: string; day?: OverviewDay; pending: boolean }) {
   const week = day?.week;
   const from = week?.from ?? (date ? addCalendarDays(date, -6) : "");
   const missing = week?.missingMorningDates ?? [];
@@ -113,7 +131,6 @@ function OverviewComparison({ date, day, pending, mobile }: { date: string; day?
   const weekDates = <span className={styles.comparisonDates}>{from && date
     ? <><time dateTime={from}>{shortDate(from)}</time>—<time dateTime={date}>{shortDate(date)}</time></> : "—"}</span>;
   return <div className={styles.overviewComparison} role="group" aria-label="日期对照" data-selected-date={date} data-overview-comparison>
-    {mobile&&<SelectedDayRow date={date} day={day} pending={pending}/>}
     <div className={styles.comparisonRow} data-overview-week>
       <div className={styles.comparisonPeriod}><span>近 7 天</span>{weekDates}</div>
       <div data-overview-week-energy><ComparisonBalance balance={week?.energyBalance ?? null} pending={pending}/></div>
