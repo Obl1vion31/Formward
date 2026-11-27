@@ -32,6 +32,7 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
   const [mealTask,setMealTask]=useState<string|null>(null);
   const [open, setOpen] = useState(false), [data, setData] = useState<AssistantContext | null>(null), [error, setError] = useState(""), [loading, setLoading] = useState(false), [toast, setToast] = useState(false), [paused, setPaused] = useState(false), [clock, setClock] = useState(0), [local, setLocal] = useState<{date:string;timezone:string}|null>(null);
   const dataRef = useRef<AssistantContext | null>(null), request = useRef<AbortController | null>(null), revision = useRef(0), lastRead = useRef(0), activeRoute = useRef(pathname), generation = useRef(0), phase = useRef<"open" | "closing" | "closed">("closed"), surface = useRef<SurfaceController | null>(null), ignored = useRef(new Set<string>()), latestRefresh = useRef<(force?:boolean)=>Promise<void>>(async()=>undefined);
+  const toastElement = useRef<HTMLElement | null>(null);
   useEffect(()=>{activeRoute.current=pathname;},[pathname]);
   const apply = useCallback((next: AssistantContext) => {
     const value = { ...next, pending: next.pending.filter(item => !ignored.current.has(item.id)) };
@@ -158,12 +159,32 @@ export function AssistantProvider({ accountId, children, chatEnabled = false, in
     return () => clearTimeout(timer);
   }, [available, linkedTrend, open, error, pending, accountId]);
   useEffect(() => { if (!toast || paused) return; const timer = setTimeout(() => setToast(false), 5000); return () => clearTimeout(timer); }, [toast, paused]);
+  useEffect(() => {
+    if (!toast || paused || pathname !== "/dashboard") return;
+    const uncoverReadings = () => {
+      const notice = toastElement.current?.getBoundingClientRect();
+      const readings = document.querySelector("[data-overview-readings]:not([inert] *)")?.getBoundingClientRect();
+      if (notice && readings && readings.bottom > notice.top && readings.top < notice.bottom &&
+          readings.right > notice.left && readings.left < notice.right) setToast(false);
+    };
+    const onChartUse = (event: Event) => {
+      if (event.target instanceof Element && event.target.closest("[data-overview-plot]")) uncoverReadings();
+    };
+    window.addEventListener("scroll", uncoverReadings, { passive: true });
+    document.addEventListener("click", onChartUse);
+    document.addEventListener("focusin", onChartUse);
+    return () => {
+      window.removeEventListener("scroll", uncoverReadings);
+      document.removeEventListener("click", onChartUse);
+      document.removeEventListener("focusin", onChartUse);
+    };
+  }, [toast, paused, pathname]);
   useEffect(() => () => { generation.current++; request.current?.abort(); }, []);
   const tasks = useMemo(() => ({ data: data ? { ...data, pending } : null, error, loading, retry: () => { void refresh(true); }, dismissItem, completeMealDay }), [data, pending, error, loading, refresh, dismissItem, completeMealDay]);
   const yesterday = pathname === "/dashboard" ? pending.find(item => item.mealStatus) : undefined;
   const value = useMemo(() => ({ open: open && available, count: pending.length, toggle, hide, openMealTask, source: page?.source ?? null, page, backFromPage, completePageMotion, tasks }), [open, available, pending.length, toggle, hide, openMealTask, page, backFromPage, completePageMotion, tasks]);
   return <AssistantChatProvider accountId={accountId} enabled={chatEnabled} initialEntitlement={initialEntitlement} open={pageOpen || (open && available)} photoTask={pageTask??mealTask}><AssistantStateContext.Provider value={value}>{children}
-    {toast && !linkedTrend && available && !open && pending.length > 0 && <aside className={styles.toast} role="status" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false); }}>
+    {toast && !linkedTrend && available && !open && pending.length > 0 && <aside ref={toastElement} className={styles.toast} role="status" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false); }}>
       {yesterday ? <><span>昨天 · {yesterday.mealStatus === "incomplete" ? "饮食未记全" : "饮食未确认"}</span><LoadingLink returnScope="workspace" href={yesterday.action.href} onClick={()=>setToast(false)}>核对</LoadingLink></> :
         <><span>{pending.length === 1 ? pending[0].title : `有 ${pending.length} 项待查看`}</span><button type="button" onClick={() => show("tasks")}>查看</button></>}
       <button type="button" aria-label="关闭提醒" onClick={() => setToast(false)}>×</button>

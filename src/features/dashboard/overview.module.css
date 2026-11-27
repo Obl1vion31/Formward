@@ -218,5 +218,7 @@
 .weekCoverage { font-size:11px; white-space:nowrap; }
 @media(max-width:700px),(hover:none) and (pointer:coarse) {
   .selectedDay { font-size:13px; column-gap:6px; }
+}
+@media(max-width:360px) {
   .selectedRecord .recordLongLabel { display:none; }
 }
