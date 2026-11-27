@@ -151,7 +151,7 @@ export function MeasurementsView({ records: serverRecords, dates: serverDates, s
       ><div data-chart-metric={activeMetric} data-nested-chart ref={bindPlot}><BodyTrendPlot linked={!!initialTrend&&range.start===initialTrend.from&&range.end===initialTrend.to} records={visibleRecords} metric={activeMetric} showEvening={showEvening} interval={range} selectedDate={activeDate} selectedPeriod={selectedPeriod} selection={selection} onPeriod={setChartPeriod} choices={choices}/></div>
       </RecordTrendPanel>
     </section>
-    <DailyRecords kind="body" loading={!today} history={{today,dates:measurementCalendarPage(catalog,calendarOrdinal(catalog.end)-calendarOrdinal(catalog.start)+1).filter(date=>date!==today),renderRow:renderDay,view:inspectDay}}>{today && renderDay(today)}</DailyRecords>
+    <DailyRecords kind="body" domain="measurement" covered={Boolean(drawer)} loading={!today} history={{today,dates:measurementCalendarPage(catalog,calendarOrdinal(catalog.end)-calendarOrdinal(catalog.start)+1).filter(date=>date!==today),renderRow:renderDay,view:inspectDay}}>{today && renderDay(today)}</DailyRecords>
     {drawer && <MeasurementInspector key={drawer.kind+":"+drawer.date} routeEntry={!!initialPeriod&&drawer.kind==="entry"&&drawer.date===initialDate} view={drawer} records={records} sources={sources} timezone={timezone} actions={sourceActions} onUpdated={updated} choices={choices} onChoose={chooseRecord} onClose={() => setDrawer(null)} />}
   </RecordWorkspace></BodyFatContext>;
 }

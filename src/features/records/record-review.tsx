@@ -6,7 +6,9 @@ import {formatRecordNumber,formatUnitNumber} from "@/components/number-format";
 import {mealTypeLabel,duplicateMealNotice} from "../meals/model";
 import {MealDuplicateNotice} from "../meals/meal-duplicate-notice";
 import {unusualNumbers} from "@/components/number-change";
-import { useId, useRef, useState, useTransition, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import { AnimatedRegion } from "@/components/animated-region";
+import { localMotionEasing, localTargetVisible, permitsLocalMotion } from "@/components/local-motion";
 import { LoadingLink } from "@/components/loading-link";
 import { WorkspaceReturnLink } from "@/components/workspace-return";
 
@@ -155,7 +157,44 @@ export function RecordReview({ operation: initial, review, load, sources: initia
   const changedMeals = op.changedMeals ?? [];
   const nextStep = recovery?.kind === "read" ? "read" : changedMeals.length ? "current" : (recovery?.kind === "update" && op.revision <= recovery.revision) || expired || op.needsRefresh ? "update" : "save";
 
-  function applyResult(result: RecordReviewView) {
+  const reviewSurface = useRef<HTMLElement>(null);
+  const savedFrom = useRef<{ id: string; revision: number; height: number; focused: boolean } | null>(null);
+  const changedRow = useRef<{ key: string; restore: boolean; revision: number } | null>(null);
+  useLayoutEffect(() => {
+    const node = reviewSurface.current;
+    const change = changedRow.current;
+    if (change && op.revision >= change.revision) {
+      changedRow.current = null;
+      if (op.revision === change.revision && document.activeElement === document.body) {
+        document.getElementById(scope + "-record-" + change.key)?.querySelector<HTMLElement>(
+          change.restore ? "[data-review-restore]" : "[data-review-exclude]",
+        )?.focus({ preventScroll: true });
+      }
+    }
+    const saved = savedFrom.current;
+    if (!saved || !node || saved.id !== op.id || op.status !== "confirmed" || op.revision < saved.revision) return;
+    savedFrom.current = null;
+    if (saved.focused && document.activeElement === document.body) {
+      node.querySelector("h3")?.focus({ preventScroll: true });
+    }
+    if (permitsLocalMotion() && localTargetVisible(node) && typeof node.animate === "function") {
+      const height = node.getBoundingClientRect().height;
+      const animation = node.animate([
+        { height: saved.height + "px", opacity: .7, overflow: "clip" },
+        { height: height + "px", opacity: 1, overflow: "clip" },
+      ], { duration: 200, easing: localMotionEasing });
+      node.dataset.receiptMotion = "saved";
+      const stop = () => delete node.dataset.receiptMotion;
+      void animation.finished.then(stop, stop);
+    }
+  }, [op.id, op.revision, op.status, scope]);
+
+  function applyResult(result: RecordReviewView, acknowledgeSave = false) {
+    const node = reviewSurface.current;
+    if (acknowledgeSave && embedded && result.status === "confirmed" && node && active) {
+      savedFrom.current = { id: result.id, revision: result.revision, height: node.getBoundingClientRect().height,
+        focused: node.contains(document.activeElement) };
+    }
     setLocal(current => current?.id === result.id && current.revision > result.revision ? current : result);
     setRecovery(null);
 
@@ -166,7 +205,7 @@ export function RecordReview({ operation: initial, review, load, sources: initia
     try {
       const result = await load();
       if (result.ok) {
-        applyResult(result.data);
+        applyResult(result.data, uncertainSave);
         if (result.data.status === "pending") {
           if (uncertainSave) setError("本次尚未保存。核对后可再次确认保存。");
           else if (editing) setError("已读取最新内容。当前输入已保留，请核对后应用。");
@@ -201,7 +240,13 @@ export function RecordReview({ operation: initial, review, load, sources: initia
           } else setError(result.error);
           return;
         }
-        applyResult(result.data);
+        if (embedded && (action.kind === "exclude" || action.kind === "restore") && action.keys?.length === 1) {
+          const key = action.keys[0];
+          if (document.getElementById(rowId(key))?.contains(document.activeElement)) {
+            changedRow.current = { key, restore: action.kind === "exclude", revision: result.data.revision };
+          }
+        }
+        applyResult(result.data, action.kind === "confirm");
         if (!embedded) window.dispatchEvent(new CustomEvent("formward-assistant-updated", { detail: { previewId: result.data.id } }));
         if (action.kind === "refresh") setUpdated({ revision: result.data.revision, changes: updatedNutrition(op, result.data) });
         if (action.kind === "update") setEditing(null);
@@ -232,26 +277,30 @@ export function RecordReview({ operation: initial, review, load, sources: initia
   const command = (kind: "check" | "exclude" | "restore", keys: string[]) => perform({ kind, keys, revision: op.revision });
   if(!active&&embedded){
     const persisted=op.rows.filter(row=>row.persisted),label=op.status==="confirmed"?(persisted.length>1?`已保存${persisted.length}项`:"已保存"):op.status==="completed"?"无需保存":op.status==="expired"?"已过期":op.saved?"已取消剩余内容":"已取消";
-    return <section className={styles.inlineResult} data-embedded="true" role="status" aria-label="记录结果"><h3>{label}</h3>{persisted.map(row=>{const record=row.meal?.meal,href=recordReceipt([row])[0]?.href;return <article key={row.key} className={styles.inlineSavedRow}><header className={styles.inlineHeading}><h4>{title(row)}{isBody(row.action)&&row.body?.preview.rows[0]?.after?.fasting===true?" · 空腹":""}</h4></header><InlineRecordContent row={row} settled/>{href&&<div className={styles.inlineReceiptLink}><span>{record?record.items.length+"样食物":""}</span><LoadingLink href={href} returnScope={beforeNavigate?"assistant":"workspace"} beforeNavigate={beforeNavigate}>{record?"查看饮食 →":"查看记录 →"}</LoadingLink></div>}</article>;})}{!persisted.length&&<><p className={styles.inlineMeta}>{op.status==="completed"?"没有需要写入的新内容。":"本次未保存新内容，已有记录保持。"}</p>{mealActions}</>}</section>;
+    return <section ref={reviewSurface} className={styles.inlineResult} data-embedded="true" role="status" aria-label="记录结果"><h3 tabIndex={-1}>{label}</h3>{persisted.map(row=>{const record=row.meal?.meal,href=recordReceipt([row])[0]?.href;return <article key={row.key} className={styles.inlineSavedRow}><header className={styles.inlineHeading}><h4>{title(row)}{isBody(row.action)&&row.body?.preview.rows[0]?.after?.fasting===true?" · 空腹":""}</h4></header><InlineRecordContent row={row} settled/>{href&&<div className={styles.inlineReceiptLink}><span>{record?record.items.length+"样食物":""}</span><LoadingLink href={href} returnScope={beforeNavigate?"assistant":"workspace"} beforeNavigate={beforeNavigate}>{record?"查看饮食 →":"查看记录 →"}</LoadingLink></div>}</article>;})}{!persisted.length&&<><p className={styles.inlineMeta}>{op.status==="completed"?"没有需要写入的新内容。":"本次未保存新内容，已有记录保持。"}</p>{mealActions}</>}</section>;
   }
-  if(active&&!pending.length)return <section className={styles.emptyReview} aria-label="记录状态"><h3>没有待保存内容</h3>{op.rows.map(row=><div className={styles.emptyReviewRow} key={row.key}><span>{title(row)} · {row.persisted?"已保存":row.excluded?"已取消":"已跳过"}</span>{row.excluded&&!row.persisted&&row.body?.status!=="skipped"&&<button disabled={busy||expired} onClick={()=>command("restore",[row.key])}>恢复本项</button>}</div>)}{error&&<p role="alert">{error}</p>}{!embedded&&<WorkspaceReturnLink fallback={returnPath} disabled={busy}/>}</section>;
+  if(active&&!pending.length&&!embedded)return <section className={styles.emptyReview} aria-label="记录状态"><h3>没有待保存内容</h3>{op.rows.map(row=><div className={styles.emptyReviewRow} key={row.key}><span>{title(row)} · {row.persisted?"已保存":row.excluded?"已取消":"已跳过"}</span>{row.excluded&&!row.persisted&&row.body?.status!=="skipped"&&<button disabled={busy||expired} onClick={()=>command("restore",[row.key])}>恢复本项</button>}</div>)}{error&&<p role="alert">{error}</p>}{!embedded&&<WorkspaceReturnLink fallback={returnPath} disabled={busy}/>}</section>;
   if (!active) return <section className={styles.success} data-embedded={embedded||undefined} role="status"><span className={styles.check} aria-hidden="true">{op.status === "confirmed" ? "✓" : "—"}</span><h1>{op.status === "confirmed" ? "已保存" : op.status === "completed" ? "无需保存" : op.saved ? "已取消剩余内容" : "已取消"}</h1>
     {op.saved > 0 && <><p>{op.status === "cancelled" ? "此前已保存" : "已保存"} {op.saved} 项</p>{op.rows.some(row => row.persisted && category(row.action) === "meals") && <p>饮食有修改的日期，请到饮食页重新确认是否已记全。</p>}<ul className={styles.receipt} aria-label="已保存记录">{recordReceipt(op.rows).map(item => <li key={item.type + item.date}><span>{item.date ? item.date + " · " : ""}{item.type}{item.count}项</span><LoadingLink href={item.href} beforeNavigate={embedded?beforeNavigate:undefined}>查看记录 →</LoadingLink></li>)}</ul></>}
     {!embedded&&<WorkspaceReturnLink fallback={returnPath} disabled={busy}/>}</section>;
-  return <section className={styles.workspace} data-embedded={embedded||undefined} data-guide-scope aria-label="统一记录确认" aria-busy={busy}>{!embedded&&<><WorkspaceReturnLink fallback={returnPath} disabled={busy}/><header className={styles.heading}><h1>确认记录</h1><span>{pending.length} 项待保存</span></header></>}
+  return <section ref={embedded ? reviewSurface : undefined} className={styles.workspace} data-embedded={embedded||undefined} data-guide-scope aria-label="统一记录确认" aria-busy={busy}>{!embedded&&<><WorkspaceReturnLink fallback={returnPath} disabled={busy}/><header className={styles.heading}><h1>确认记录</h1><span>{pending.length} 项待保存</span></header></>}
     {embedded ? op.rows.filter(row => !(row.body?.status === "skipped" && row.body.preview.message.startsWith("同一时段的内容已合并"))).map(row => {
       const inactive = row.excluded || row.persisted || row.body?.status === "skipped", after = row.body?.preview.rows[0]?.after;
       const issue = op.needsUserInput.find(issue => issue.key === row.key);
       const heading = isTraining(row.action) ? row.action.kind === "schedule_training" ? "训练计划" : "训练模板" : title(row);
       return <article key={row.key} id={rowId(row.key)} className={styles.inlineRow} data-review-key={row.key} data-excluded={row.excluded||undefined}>
         <header className={styles.inlineHeading}><h3>{heading}{isBody(row.action) && after?.fasting === true ? " · 空腹" : ""}</h3><span>{row.persisted ? "已保存" : row.excluded ? "已取消" : row.body?.preview.rows[0]?.before || row.meal?.before || row.energy?.before || row.training?.before ? "修改" : "新增"}</span></header>
-        {!row.excluded&&<InlineRecordContent row={row}/>}
-        {op.rows.length>1&&!row.persisted&&<div className={styles.inlineOperations}>{row.excluded ? <button disabled={busy} onClick={()=>command("restore",[row.key])}>恢复本项</button> : <><button disabled={busy||inactive} onClick={()=>{setError("");setEditing(row.key);}}>修改</button>{op.rows.length>1&&<button data-review-exclude disabled={busy||inactive} onClick={()=>command("exclude",[row.key])}>本项不保存</button>}</>}</div>}
-        {!row.excluded&&row.meal&&<div className={styles.inlineDetails}><MealContent row={row} compact/></div>}
-        {!row.excluded&&!row.meal&&(!isBody(row.action)||!!row.body?.preview.rows[0]?.before)&&<details className={styles.inlineDetails} open={row.inclusionReview||undefined}><summary>{row.inclusionReview ? "需要核对运动包含关系" : isBody(row.action) ? "修改前后" : isTraining(row.action) ? "训练内容" : "消耗明细"}</summary>
+        <AnimatedRegion open={!row.excluded} kind="review">
+          <InlineRecordContent row={row}/>
+        </AnimatedRegion>
+        {op.rows.length>1&&!row.persisted&&<div className={styles.inlineOperations}>{row.excluded ? <button data-review-restore disabled={busy} onClick={()=>command("restore",[row.key])}>恢复本项</button> : <><button disabled={busy||inactive} onClick={()=>{setError("");setEditing(row.key);}}>修改</button>{op.rows.length>1&&<button data-review-exclude disabled={busy||inactive} onClick={()=>command("exclude",[row.key])}>本项不保存</button>}</>}</div>}
+        <AnimatedRegion open={!row.excluded} kind="review">
+        {row.meal&&<div className={styles.inlineDetails}><MealContent row={row} compact/></div>}
+        {!row.meal&&(!isBody(row.action)||!!row.body?.preview.rows[0]?.before)&&<details className={styles.inlineDetails} open={row.inclusionReview||undefined}><summary>{row.inclusionReview ? "需要核对运动包含关系" : isBody(row.action) ? "修改前后" : isTraining(row.action) ? "训练内容" : "消耗明细"}</summary>
           {isTraining(row.action) ? <TrainingPlanReview compact rows={[row]} busy={busy} edit={setEditing} exclude={key=>command("exclude",[key])} restore={key=>command("restore",[key])}/> : isEnergy(row.action) ? <EnergyReview compact rows={[row]} busy={busy} dayRecords={op.energySnapshot?.days} edit={setEditing} exclude={keys=>command("exclude",keys)} restore={key=>command("restore",[key])} choose={(key,inclusion)=>perform({kind:"energy_inclusion",revision:op.revision,keys:[key],inclusion})}/> : isBody(row.action) ? <BodyContent row={row}/> : <MealContent row={row} compact/>}
         </details>}
         {issue&&<p role="alert" className={styles.error}>{issue.questions.join("；")}</p>}
+        </AnimatedRegion>
       </article>;
     }) : sections.map(([key, label]) => { const rows = op.rows.filter(row => category(row.action) === key&&!(row.body?.status==="skipped"&&row.body.preview.message.startsWith("同一时段的内容已合并"))); if (!rows.length) return null;
       const cancellable = rows.filter(row => !row.excluded && !row.persisted && row.body?.status !== "skipped");
@@ -280,12 +329,13 @@ export function RecordReview({ operation: initial, review, load, sources: initia
           <strong role="status">{issues.length ? "已更新，请处理需要核对的内容" : "已更新，待保存"}</strong>
           {updated.changes.map(change => <p key={change}>{change}</p>)}
         </>}
-        {!working && nextStep === "save" && updated?.revision !== op.revision && (!embedded || op.rows.length > 1) && <strong>{pending.length} 项待保存</strong>}
+        {!working && nextStep === "save" && updated?.revision !== op.revision && (!embedded || op.rows.length > 1) && <strong>{pending.length ? pending.length + " 项待保存" : "没有待保存内容"}</strong>}
         {!embedded && nextStep === "save" && pending.some(row => isEnergy(row.action)) && <span className={styles.footerScope}>{pendingChangesLabel(op.rows)}</span>}
         {nextStep === "save" && issues.length > 0 && <button onClick={() => document.getElementById(rowId(issues[0].key))?.scrollIntoView({ block: "center" })}>{issues.length} 项需处理</button>}
         {!editing && error && <p role="alert" className={styles.error}>{error}</p>}
       </div>
       {embedded && op.rows.length === 1 && pending[0] && <button disabled={busy || nextStep !== "save"} onClick={() => { setError(""); setEditing(pending[0].key); }}>修改</button>}
+      {(!embedded || pending.length > 0) && <>
       <button disabled={busy || nextStep === "read"} onClick={() => perform({ kind: "cancel", revision: op.revision })}>本次不保存</button>
       {mealActions}
       {nextStep === "current" ? changedMeals.map(meal => meal.id && <LoadingLink key={meal.key} className={styles.save} href={`/dashboard/meals?date=${meal.date}`} beforeNavigate={embedded ? beforeNavigate : undefined}>查看当前记录</LoadingLink>) :
@@ -294,6 +344,7 @@ export function RecordReview({ operation: initial, review, load, sources: initia
           else if (nextStep === "update") perform({ kind: "refresh", revision: op.revision });
           else perform({ kind: "confirm", revision: op.revision, allowMissingImageKeys: [] });
         }}>{working === "refresh" ? "正在更新…" : working === "read" ? "正在读取…" : working === "confirm" ? "正在保存…" : nextStep === "update" ? "更新内容" : nextStep === "read" ? "重新读取" : "确认保存"}</button>}
+      </>}
     </footer>
     {editRow && <EditorDialog wide={editRow.action.kind === "save_meal"} title="修改待保存内容" busy={busy} close={() => { if (!busy) { setEditing(null); setError(""); } }}>
       {error && <p className={styles.error} role="alert">{error}</p>}

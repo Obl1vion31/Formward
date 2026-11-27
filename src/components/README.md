@@ -28,6 +28,8 @@ form-draft.ts比较有效数字文本而不舍入，draft-guard.ts集中“继�
 
 `brand-logo.tsx` 和同名 CSS 模块统一 F＋手臂图标、formward 字标和金色圆点。图形用 `/icons/formward-mark.svg` 的透明遮罩跟随文字颜色；工作区的 `compactOnMobile` 在窄屏／触屏仅显示图标。可访问名称由外层图片语义或链接提供，内部图形与文字不重复朗读。
 
+
+AnimatedRegion 提供食材行、核对明细与最近记录的原位开合。退场时可见内容随高度淡出，控件立即退出命中和焦点范围。DailyRecords 只在本人保存回执后强调可见的对应日期读数。
 ## 四页共用框架、确认和读数
 
 record-trend-panel.tsx统一正文、日期与查看、主要读数、区间、标题与实际选项、图例和绘图区。InlineChartControls直接呈现单个勾选与占比切换，ChartOptions只放真正需展开的业务选项，自定义日期须应用才生效。数值、单位及完整标签共同决定列数，labelVariants／noteVariants按当前区间全部状态预留高度；reserveNote保留身体估计说明行，稳定id避免标签变化重新挂载。必要状态按当前区间的可能文字预留紧凑高度，无提示区间不占行。确认由confirmation.tsx与confirmation-state.ts集中排队、取消/Escape、焦点和滚动锁；没有挂载时不降级到浏览器确认。number-format.ts按业务显示蛋白质／碳水／脂肪最多一位小数并去掉末尾0、热量／消耗整数和身体两位；decimal-input.tsx的宏量输入最多接受一位小数，手填热量／消耗仍只收整数。格式化、聚焦和失焦不写回未修改原值，未知与0保持区别；热量计算与落库不提前取整，公开请求和查询精度保持。健康计算仍在各feature共用模型。

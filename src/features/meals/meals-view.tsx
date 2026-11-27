@@ -267,7 +267,7 @@ export function MealsView({ accountId, snapshot, today: initialToday, operations
       >{validRange?<div data-nested-chart ref={bindPlot}><NutritionChart dates={dates} groups={groups} mode={macroMode} selection={chart} compact={dates.length<=31} linked={!!initialTrend&&from===initialTrend.from&&to===initialTrend.to}/></div>:<p className={styles.hint}>请选择有效日期区间，最长10年。</p>}</RecordTrendPanel>
       </div>
       {error&&!editing&&<p role="alert" className={styles.error}>{error}</p>}{notice&&<p role="status" className={styles.hint}>{notice}</p>}
-      <DailyRecords history={{today,dates:[...new Set([...recentRecordDates(today),...groups.map(g=>g.date)])].filter(date=>!recentDates.includes(date)).sort().reverse(),renderRow:renderDay,view:viewDay,display:{value:history,change:setHistory}}}>{recentDates.map(renderDay)}</DailyRecords>
+      <DailyRecords domain="mealDay" covered={Boolean(historyOpen || editing)} history={{today,dates:[...new Set([...recentRecordDates(today),...groups.map(g=>g.date)])].filter(date=>!recentDates.includes(date)).sort().reverse(),renderRow:renderDay,view:viewDay,display:{value:history,change:setHistory}}}>{recentDates.map(renderDay)}</DailyRecords>
       {operations.filter(op=>mealOperationStatus(op,now)==="pending"&&op.origin!=="manual").map(op=><LoadingLink key={op.id} className={styles.reviewLink} returnScope="workspace" href={op.confirmationPath}>AI 饮食预览 · {op.rows.length} 项待确认 <span>查看 →</span></LoadingLink>)}
     </div>
     <div className={styles.library} ref={libraryPane} hidden={!foods && !scene.moving}

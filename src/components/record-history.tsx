@@ -2,6 +2,7 @@
 
 import { useId, useState, type ReactNode } from "react";
 import { displayRecordDate } from "./record-dates";
+import { AnimatedRegion } from "./animated-region";
 import styles from "./record-ui.module.css";
 
 export type HistoryDisplay = { expanded: boolean; opened: boolean; limit: number; selected: string };
@@ -46,38 +47,38 @@ export function RecordHistory({ data, loading }: { data?: RecordHistoryData; loa
           <span className={styles.historyArrow} aria-hidden="true">{expanded ? "↑" : "↓"}</span>
         </span>
       </button>
-      {expanded && <>
-        <div className={styles.dateField}>
-          <input
-            aria-label="查看日期"
-            type="date"
-            max={today}
-            required
-            value={selected}
-            onChange={event => change({ ...display, selected: event.target.value })}
-          />
-          <span className={styles.dateDisplay} data-placeholder={!selected || undefined} aria-hidden="true">
-            {selected ? displayRecordDate(selected) : "选择日期"}
-          </span>
-          <svg className={styles.dateIcon} width="14" height="14" viewBox="0 0 16 16" fill="none"
-            stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
-            <rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/>
-            <path d="M5.2 2v3m5.6-3v3M3 7h10"/>
-          </svg>
-        </div>
-        <button className={styles.historyAction} type="submit" disabled={!canView}>
-          <span className={styles.actionFace}>查询</span>
-        </button>
-      </>}
+      <div className={styles.dateField} data-history-filter inert={!expanded || undefined}>
+        <input
+          aria-label="查看日期"
+          type="date"
+          max={today}
+          required
+          value={selected}
+          onChange={event => change({ ...display, selected: event.target.value })}
+        />
+        <span className={styles.dateDisplay} data-placeholder={!selected || undefined} aria-hidden="true">
+          {selected ? displayRecordDate(selected) : "选择日期"}
+        </span>
+        <svg className={styles.dateIcon} width="14" height="14" viewBox="0 0 16 16" fill="none"
+          stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+          <rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/>
+          <path d="M5.2 2v3m5.6-3v3M3 7h10"/>
+        </svg>
+      </div>
+      <button className={styles.historyAction} data-history-filter inert={!expanded || undefined} type="submit" disabled={!canView}>
+        <span className={styles.actionFace}>查询</span>
+      </button>
     </form>
-    <div id={historyId} hidden={!expanded} data-record-history>
-      {opened && data?.dates.slice(0, limit).map(data.renderRow)}
-      {opened && data?.dates.length === 0 && <p className={styles.empty}>没有其他历史记录。</p>}
-      {opened && data && limit < data.dates.length && (
-        <button className={styles.historyAction} type="button" onClick={() => change({ ...display, limit: limit + 50 })}>
-          <span className={styles.actionFace}>加载更早日期</span>
-        </button>
-      )}
-    </div>
+    <AnimatedRegion id={historyId} open={expanded} keepMounted kind="history" label="历史记录">
+      <div data-record-history>
+        {opened && data?.dates.slice(0, limit).map(data.renderRow)}
+        {opened && data?.dates.length === 0 && <p className={styles.empty}>没有其他历史记录。</p>}
+        {opened && data && limit < data.dates.length && (
+          <button className={styles.historyAction} type="button" onClick={() => change({ ...display, limit: limit + 50 })}>
+            <span className={styles.actionFace}>加载更早日期</span>
+          </button>
+        )}
+      </div>
+    </AnimatedRegion>
   </>;
 }

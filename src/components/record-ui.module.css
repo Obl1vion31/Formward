@@ -70,15 +70,28 @@
 .historyArrow { inline-size: 1em; text-align: center; }
 .historyDate {
   display: grid;
-  grid-template-columns: max-content;
+  grid-template-columns: max-content minmax(0, 10.5rem) max-content;
   align-items: center;
   justify-content: start;
   gap: 6px;
   margin: 4px 0;
 }
-.historyDate[data-history-expanded] {
-  grid-template-columns: max-content minmax(0, 10.5rem) max-content;
+.historyDate [data-history-filter] {
+  opacity: 0;
+  translate: 0 -3px;
+  visibility: hidden;
+  transition: opacity 160ms ease-out, translate 160ms ease-out, visibility 0s linear 160ms;
 }
+.historyDate[data-history-expanded] [data-history-filter] {
+  opacity: 1;
+  translate: none;
+  visibility: visible;
+  transition-delay: 0s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .historyDate [data-history-filter] { transition: none; translate: none; }
+}
+.records .value[data-local-feedback="saved"] { border-radius: 6px; }
 .historyDate button[type=submit] > .actionFace { min-height: 36px; min-width: 48px; }
 @media (max-width: 360px) {
   .historyDate [data-history-toggle] > .actionFace { gap: 4px; padding-inline: 8px; }

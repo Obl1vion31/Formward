@@ -1,4 +1,6 @@
 "use client";
+import { AnimatedRegion } from "@/components/animated-region";
+import { highlightLocalChange, localTargetVisible, permitsLocalMotion } from "@/components/local-motion";
 import {DateField} from "@/components/date-field";
 import { MealPhotoEntry, type AppliedMeal } from "../assistant/meal-photo-entry";
 import { useOptionalAssistantChat } from "../assistant/chat-client";
@@ -31,6 +33,7 @@ import motion from "./meal-editor-motion.module.css";
 const dragType = "application/x-formward-food";
 const categories = ["all", "meat", "vegetable", "staple", "other", "meal"] as const;
 type Category = (typeof categories)[number];
+type DepartingFood = { item: EditorItem; index: number; following: number[] };
 const categoryLabels = { all: "全部", meal: "整餐", ...foodGroupLabels };
 const referenceKey = (food: { id: string; version: number }) => food.id + ":" + food.version;
 
@@ -160,6 +163,21 @@ export function MealEditor({
   return editorItem(item,index,saved?.nutrition,!!(item.foodId||item.foodRef||item.foodDraft||item.referenceFood||saved?.foodSnapshot));
  }),freeEditorItem(initial.items.length)]}));
  const [freeKey, setFreeKey] = useState<number | null>(null);
+ const [departing, setDeparting] = useState<DepartingFood[]>([]);
+ const newFoodFeedback = useRef<{ existing: Set<number>; replacements: Set<number> } | null>(null);
+ useLayoutEffect(() => {
+   if (libraryOpen || paneChange || !newFoodFeedback.current) return;
+   const pending = newFoodFeedback.current;
+   newFoodFeedback.current = null;
+   let visible = false;
+   for (const row of rows.current?.querySelectorAll<HTMLElement>("[data-meal-row]") ?? []) {
+     const key = Number(row.dataset.mealRowKey);
+     if (pending.replacements.has(key) || !pending.existing.has(key)) {
+       visible = highlightLocalChange(row, "food") || visible;
+     }
+   }
+   if (!visible && totalsBar.current) highlightLocalChange(totalsBar.current, "food");
+ }, [draft, libraryOpen, paneChange]);
  const [collapsed, setCollapsed] = useState<number[]>([]);
  const [query, setQuery] = useState("");
  const [category, setCategory] = useState<Category>("all");
@@ -327,11 +345,21 @@ export function MealEditor({
    else returnToMeal();
  }
 
+ function rememberFoodSelection() {
+   const pending = newFoodFeedback.current ??= {
+     existing: new Set(liveDraft.current.items.map(item => item.editor.key)),
+     replacements: new Set<number>(),
+   };
+   const replaced = replacing === null ? undefined : liveDraft.current.items[replacing];
+   if (replaced) pending.replacements.add(replaced.editor.key);
+ }
+
  function addFoods(chosen: FoodView[]) {
-   if (!chosen.length || busy || uploading) return;
+   if (!chosen.length || busy || uploading || !canPick) return;
+   rememberFoodSelection();
    setDraft(previous => {
      const remaining = 50 - previous.items.filter(item => !emptyEditorItem(item)).length;
-     let key = Math.max(...previous.items.map(item => item.editor.key)) + 1;
+     let key = Math.max(...previous.items.map(item => item.editor.key), ...departing.map(row => row.item.editor.key)) + 1;
      const makeRow = (food: FoodView, rowKey: number) => {
        const packaged = !!(food.servingQuantity && food.servingUnit);
        const quantity = packaged ? "1" : defaultFoodQuantity(food.unit);
@@ -353,11 +381,12 @@ export function MealEditor({
 
  function addReference(picks: readonly ReferencePick[]) {
    if (!picks.length || picks.length > availablePickSlots || busy || uploading) return;
+   rememberFoodSelection();
    setReferenceFoods(current => ({ ...current, ...Object.fromEntries(picks.flatMap(({ food, parts }) =>
      [food, ...(parts ?? []).map(part => part.food)].map(entry => [referenceKey(entry), entry]))) }));
    setDraft(previous => {
      const index = replacing ?? previous.items.length - 1;
-     const nextKey = Math.max(...previous.items.map(row => row.editor.key)) + 1;
+     const nextKey = Math.max(...previous.items.map(row => row.editor.key), ...departing.map(row => row.item.editor.key)) + 1;
      const firstKey = replacing === null ? nextKey : previous.items[index].editor.key;
      const additions = picks.map(({ item }, offset) => editorItem(
        recipeEdit ? { ...item, originalItemId: previous.items[index].originalItemId } : item,
@@ -431,6 +460,39 @@ export function MealEditor({
 
  const visibleRows = draft.items.map((item, index) => ({ item, index }))
    .filter(({ item }) => !emptyEditorItem(item) || item.editor.key === freeKey);
+ const renderedRows: { item: EditorItem; index: number; leaving?: boolean }[] = visibleRows.slice();
+ for (const row of departing.slice().reverse()) {
+   const before = renderedRows.findIndex(next => row.following.includes(next.item.editor.key));
+   renderedRows.splice(before < 0 ? renderedRows.length : before, 0, {...row, leaving: true});
+ }
+
+ function removeFoodRow(item: EditorItem, index: number) {
+   if (!emptyEditorItem(item)) {
+     const key = item.editor.key;
+     const node = rows.current?.querySelector<HTMLElement>('[data-meal-row-key="' + key + '"]');
+     const active = document.activeElement;
+     const focused = active && node?.contains(active) && active.matches(":focus-visible");
+     if (node && permitsLocalMotion() && localTargetVisible(node)) {
+       const following = visibleRows.slice(visibleRows.findIndex(row => row.item.editor.key === key) + 1).map(row => row.item.editor.key);
+       setDeparting(previous => [...previous, {item, index, following}]);
+     }
+     setDraft(previous => {
+       const items = previous.items.filter(row => row.editor.key !== key);
+       if (previous.items.at(-1)?.editor.key === key) items.push(freeEditorItem(key + 1));
+       return {...previous, items};
+     });
+     requestAnimationFrame(() => {
+       if (mealPane.current) setInvalid(Boolean(mealPane.current.querySelector(":invalid")));
+       if (focused && document.activeElement === document.body) {
+         const remaining = rows.current?.querySelectorAll<HTMLElement>("[data-meal-row]");
+         const neighbor = remaining?.[Math.min(index, remaining.length - 1)]?.querySelector<HTMLElement>("[data-meal-remove]");
+         (neighbor ?? libraryTrigger.current)?.focus({preventScroll: true});
+       }
+     });
+   }
+   if (freeKey === item.editor.key) setFreeKey(null);
+ }
+
  const availablePickSlots = 50 - entered.length + (replacing === null ? 0 : 1);
  const canPick = availablePickSlots > 0;
  const mobilePicker = mobile === true && libraryOpen && !aiOpen;
@@ -536,28 +598,28 @@ export function MealEditor({
              </button>}
            </div>
 
-           {visibleRows.length > 0 && <div className={styles.foodRows}>
-             <div className={styles.rowHeadings} aria-hidden="true">
-               <span>食物名称</span><span>数量</span><span>单位</span>
-               {metrics.map(metric => <span key={metric}>{metricLabels[metric]} <small>{nutrientUnit(metric)}</small></span>)}
+           <AnimatedRegion open={visibleRows.length > 0} kind="food" onCollapsed={() => setDeparting([])}>
+             <div className={styles.foodRows}>
+               <div className={styles.rowHeadings} aria-hidden="true">
+                 <span>食物名称</span><span>数量</span><span>单位</span>
+                 {metrics.map(metric => <span key={metric}>{metricLabels[metric]} <small>{nutrientUnit(metric)}</small></span>)}
+               </div>
+               <ul className={styles.rowList} ref={rows} aria-label="本餐已添加食物">
+                 {renderedRows.map(({ item, index, leaving }) => <li key={item.editor.key} inert={leaving || undefined} aria-hidden={leaving || undefined} data-food-departing={leaving || undefined}>
+                   <AnimatedRegion open={!leaving || !visibleRows.length} kind="food"
+                     onCollapsed={() => setDeparting(previous => previous.filter(row => row.item.editor.key !== item.editor.key))}>
+                     <MealEntryRow item={item} index={index} leaving={leaving}
+                       guided={item.editor.key===freeKey} blank={emptyEditorItem(item)} food={itemFood(item)} reference={itemReference(item)} nutrition={values(item)} nutritionHint={nutritionHint}
+                       recipeParts={itemRecipeParts(item)} adjustRecipe={() => showLibrary(index, true)}
+                       nutritionOpen={!collapsed.includes(item.editor.key)} update={next => setItem(index, next)}
+                       toggleNutrition={() => setCollapsed(previous => previous.includes(item.editor.key)
+                         ? previous.filter(key => key !== item.editor.key) : [...previous, item.editor.key])}
+                       replace={() => showLibrary(index)} remove={() => removeFoodRow(item, index)}/>
+                   </AnimatedRegion>
+                 </li>)}
+               </ul>
              </div>
-             <ul className={styles.rowList} ref={rows} aria-label="本餐已添加食物">
-               {visibleRows.map(({ item, index }) => <MealEntryRow key={item.editor.key} item={item} index={index}
-                 guided={item.editor.key===freeKey} blank={emptyEditorItem(item)} food={itemFood(item)} reference={itemReference(item)} nutrition={values(item)} nutritionHint={nutritionHint}
-                 recipeParts={itemRecipeParts(item)} adjustRecipe={() => showLibrary(index, true)}
-                 nutritionOpen={!collapsed.includes(item.editor.key)} update={next => setItem(index, next)}
-                 toggleNutrition={() => setCollapsed(previous => previous.includes(item.editor.key)
-                   ? previous.filter(key => key !== item.editor.key) : [...previous, item.editor.key])}
-                 replace={() => showLibrary(index)} remove={() => {
-                   if (!emptyEditorItem(item)) setDraft(previous => {
-                     const items = previous.items.filter((_, itemIndex) => itemIndex !== index);
-                     if (index === previous.items.length - 1) items.push(freeEditorItem(item.editor.key));
-                     return { ...previous, items };
-                   });
-                   if (freeKey === item.editor.key) setFreeKey(null);
-                 }}/>)}
-             </ul>
-           </div>}
+           </AnimatedRegion>
            <datalist id="meal-portion-units">{["g", "mL", "份", "个", "只", "碗", "杯", "包", "勺"].map(unit => <option key={unit} value={unit}/>)}</datalist>
            <p id={nutritionHint} className="sr-only">填写本次总营养，三项填全后按4／4／9计算热量，也可手填。食材库按份量换算。</p>
 

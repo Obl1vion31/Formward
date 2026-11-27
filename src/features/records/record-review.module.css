@@ -2,7 +2,7 @@
 .workspace[data-embedded]{margin:0;font-size:.875rem;line-height:1.5}
 .inlineRow{display:flow-root;padding:0 0 12px;min-width:0;scroll-margin-block:16px}
 .inlineRow+.inlineRow{padding-top:16px;border-top:1px solid var(--rule)}
-.inlineRow[data-excluded=true]{opacity:.65}
+.inlineRow[data-excluded=true] > .inlineHeading{color:var(--muted)}
 .inlineHeading{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px}
 .inlineHeading h3{margin:0;font-size:.875rem;font-weight:500;line-height:1.5}
 .inlineHeading>span{font-size:.8125rem;color:var(--muted)}

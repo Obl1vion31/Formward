@@ -1,5 +1,6 @@
 import { useId, type KeyboardEvent } from "react";
 import { DecimalInput } from "@/components/decimal-input";
+import { formatIntegerNumber, formatNutritionNumber } from "@/components/number-format";
 import { MealItemDetails } from "./meal-item-details";
 import { FoodArt, RecipeArt, SavedRecipeParts } from "./food-art";
 import type { RecipePart, ReferenceFood } from "./reference-food";
@@ -18,6 +19,7 @@ type Props = {
   nutrition: Nutrition;
   nutritionHint: string;
   blank: boolean;
+  leaving?: boolean;
   guided?: boolean;
   nutritionOpen: boolean;
   update: (next: EditorItem) => void;
@@ -38,7 +40,7 @@ function NutritionTrigger() {
 }
 
 export function MealEntryRow({
-  item, index, food, reference, recipeParts, adjustRecipe, nutrition, nutritionHint, blank, guided, nutritionOpen, update, toggleNutrition, remove, replace,
+  item, index, food, reference, recipeParts, adjustRecipe, nutrition, nutritionHint, blank, leaving, guided, nutritionOpen, update, toggleNutrition, remove, replace,
 }: Props) {
   const id = useId(), number = index + 1;
   const name = food?.name ?? (item.name.trim() || "第 " + number + " 项食物");
@@ -46,6 +48,12 @@ export function MealEntryRow({
   const isRecipe = Boolean(reference?.recipe);
   const packageUnits = !isRecipe && food?.servingQuantity && food.servingUnit ? [food.servingUnit, food.unit] : [];
   const raw = item.nutrition ?? emptyNutrition();
+  const menuFace = food
+    ? <><strong className={styles.menuName}>{name}</strong><MealInfoIcon/></>
+    : <><span className={styles.sourceLabel}>依据</span><MealInfoIcon/></>;
+  const removeFace = <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+    strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8"/></svg>;
+  const NutrientField = leaving ? "div" : "label";
   const chosenSource = ["label", "composition_table"].includes(item.sourceKind) ? "reference" : item.sourceKind;
   const choices: [ItemDraft["sourceKind"], string][] = [["reference", sourceLabels.reference], ["estimated", "直接预估"]];
   if (item.sourceKind === "unknown") choices.push(["unknown", "未知（原记录）"]);
@@ -72,21 +80,27 @@ export function MealEntryRow({
     });
   }
 
-  return <li className={styles.entryRow} data-meal-row data-meal-row-key={item.editor.key} data-blank-row={blank || undefined}
+  return <div className={styles.entryRow} data-meal-row={!leaving || undefined} data-meal-row-key={leaving ? undefined : item.editor.key} data-blank-row={blank || undefined}
     data-nutrition-basis={food ? "food_library" : "consumed_total"} data-nutrition-collapsed={!nutritionOpen || undefined}>
     <div className={food ? styles.rowName : styles.rowName + " " + styles.compactField}>
-      {food ? <strong>{food.name}</strong> : <input data-meal-name data-guide-target={guided?"meal-manual-name":undefined} value={item.name}
+      {food ? <strong>{food.name}</strong>
+        : leaving ? <span className={styles.fieldFace} data-placeholder={!item.name || undefined}>{item.name || "食物名称"}</span>
+        : <input data-meal-name data-guide-target={guided?"meal-manual-name":undefined} value={item.name}
         aria-label={blank ? "自由填写食物名称" : "食物名称 " + number} placeholder="食物名称" maxLength={200}
         onKeyDown={finishField} onChange={event => update({ ...item, name: event.target.value })}/>}
       {!blank && !item.name.trim() && <small role="status" className={styles.fieldIssue}>请填写食物名称</small>}
     </div>
     <div className={styles.quantity + (isRecipe ? "" : " " + styles.compactField)}>
-      {isRecipe ? <span>{item.quantity ? Number(item.quantity) : "—"}</span> : <DecimalInput data-guide-target={guided?"meal-manual-amount":undefined} value={item.quantity ?? ""} aria-label={"数量 " + number} aria-describedby={!food ? nutritionHint : undefined}
+      {isRecipe ? <span>{item.quantity ? Number(item.quantity) : "—"}</span>
+        : leaving ? <span className={styles.fieldFace} data-placeholder={!item.quantity || undefined}>{item.quantity ? Number(item.quantity) : "数量"}</span>
+        : <DecimalInput data-guide-target={guided?"meal-manual-amount":undefined} value={item.quantity ?? ""} aria-label={"数量 " + number} aria-describedby={!food ? nutritionHint : undefined}
         min={0} max={1000000} precision={2} trimTrailingZeros placeholder="数量" title={item.quantity ?? undefined} onKeyDown={finishField}
         onValue={quantity => update({ ...item, quantity: quantity || null, amountDecision: quantity ? "provided" : undefined })}/>}
     </div>
     <div className={food && !packageUnits.length ? styles.unit : styles.unit + " " + styles.compactField}>
-      {food
+      {leaving && (!food || packageUnits.length)
+        ? <span className={styles.fieldFace} data-placeholder={!unit || undefined}>{unit ? editorUnit(unit) : "单位"}</span>
+        : food
         ? packageUnits.length ? <>
           <select aria-label={"单位 " + number} title={editorUnit(unit)} data-wide-unit={editorUnit(unit).length > 1 || undefined}
             value={unit} onChange={event => changePackageUnit(event.target.value)}>
@@ -99,15 +113,17 @@ export function MealEntryRow({
           value={unit} onKeyDown={finishField} onChange={event => update({ ...item, unit: event.target.value || null })}/>}
     </div>
     <div className={styles.mobileInfo}>
-      {food ? <MealItemDetails id={id + "-facts"} label={name + "的本次营养"} trigger={<NutritionTrigger/>}
+      {leaving ? <span className={styles.nutritionButton}><NutritionTrigger/></span>
+        : food ? <MealItemDetails id={id + "-facts"} label={name + "的本次营养"} trigger={<NutritionTrigger/>}
         className={styles.nutritionButton} variant="attached">
         <MealEntryReadings nutrition={nutrition}/>
       </MealItemDetails> : <button type="button" className={styles.nutritionButton}
         aria-expanded={nutritionOpen} aria-controls={id + "-nutrients"}
         aria-label={(nutritionOpen ? "收起" : "展开") + name + "的营养"} onClick={toggleManualNutrition}><NutritionTrigger/></button>}
     </div>
-    {!blank && (food ? <MealItemDetails id={id + "-more"} label={name + "的更多操作"}
-      trigger={<><strong className={styles.menuName}>{food.name}</strong><MealInfoIcon/></>} className={styles.rowMenu}>
+    {!blank && (leaving ? <span className={styles.rowMenu}>{menuFace}</span>
+      : food ? <MealItemDetails id={id + "-more"} label={name + "的更多操作"}
+      trigger={menuFace} className={styles.rowMenu}>
       {reference && (isRecipe ? <RecipeArt food={reference}/> : <FoodArt illustration={reference.illustration} detail/>)}
       <h3>{name}</h3>
       {isRecipe ? <p>{item.referenceFood?.parts ? "拆开记" : "按整份记"} · 配方估算</p>
@@ -130,7 +146,7 @@ export function MealEntryRow({
         {food.evidenceUrl && <a href={food.evidenceUrl} target="_blank" rel="noreferrer">查看来源 ↗</a>}
       </div>
     </MealItemDetails> : <MealItemDetails id={id + "-more"} label={name + "的营养依据"}
-      trigger={<><span className={styles.sourceLabel}>依据</span><MealInfoIcon/></>}
+      trigger={menuFace}
       className={styles.rowMenu} variant="choices">
       <div className={styles.sourceChoices} role="group" aria-label={"营养依据 " + number}>
         {choices.map(([value, label]) => <button key={value} type="button" aria-pressed={chosenSource === value} onClick={() => {
@@ -142,26 +158,26 @@ export function MealEntryRow({
         </button>)}
       </div>
     </MealItemDetails>)}
-    <button type="button" className={styles.removeButton} aria-label={"移除 " + name} title={"移除 " + name}
-      onClick={remove}>
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"
-        strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="m4 4 8 8m0-8-8 8"/></svg>
-    </button>
+    {leaving ? <span className={styles.removeButton}>{removeFace}</span>
+      : <button type="button" data-meal-remove className={styles.removeButton} aria-label={"移除 " + name} title={"移除 " + name}
+        onClick={remove}>{removeFace}</button>}
     <div className={styles.rowNutrients} id={id + "-nutrients"}>
-      {metrics.map(metric => <div className={styles.nutrientCell} key={metric} data-meal-nutrient={metric}>
+      {metrics.map(metric => <div className={styles.nutrientCell} key={metric} data-meal-nutrient={leaving ? undefined : metric}>
         {food ? <>
           <span className={styles.nutrientLabel}>{metricLabels[metric]}</span>
           <MealNutrientValue value={nutrition[metric]} metric={metric}/>
-        </> : <label>
+        </> : <NutrientField className={styles.nutrientInput}>
           <span className={styles.nutrientLabel}>{metricLabels[metric]} <small>{nutrientUnit(metric)}</small></span>
           <span className={styles.compactField}>
-            <DecimalInput value={raw[metric] ?? ""} placeholder="—" aria-label={"本次" + metricLabels[metric] + " " + number}
+            {leaving ? <span className={styles.fieldFace} data-placeholder={!raw[metric] || undefined}>
+              {metric === "caloriesKcal" ? formatIntegerNumber(raw[metric]) : formatNutritionNumber(raw[metric])}
+            </span> : <DecimalInput value={raw[metric] ?? ""} placeholder="—" aria-label={"本次" + metricLabels[metric] + " " + number}
               aria-describedby={nutritionHint} min={0} max={1000000}
               precision={metric === "caloriesKcal" ? 0 : 1} onKeyDown={finishField}
-              onValue={value => update(updateEditorNutrition(item, metric, value))}/>
+              onValue={value => update(updateEditorNutrition(item, metric, value))}/>}
           </span>
-        </label>}
+        </NutrientField>}
       </div>)}
     </div>
-  </li>;
+  </div>;
 }

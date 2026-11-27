@@ -27,3 +27,5 @@
     }
   }
 }
+
+.mealPane:has([data-food-departing]) { overflow-anchor: none; }
