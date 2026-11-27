@@ -296,7 +296,7 @@ form.energyEntry[data-entry-form=energy] .primaryReadings>label>input[type=numbe
   opacity:var(--activity-focus,0);
 }
 .activityLevel small {
-  font-size:.875rem; line-height:1.25;
+  font-size:.875rem; line-height:1.25; text-wrap:balance;
   color:color-mix(in srgb,var(--warm-white) 95%,var(--surface));
 }
 .activityWheelArrows { display:grid; }
