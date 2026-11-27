@@ -89,6 +89,6 @@ function WeightChange({ label, weight, missing }: { label: string; weight: numbe
   if (weight === 0) return <span className={styles.comparisonValue}>{label}持平</span>;
   const value = formatRecordNumber(Math.abs(weight));
   return <span className={styles.comparisonValue}>
-    {label} <b aria-label={(weight < 0 ? "下降 " : "上升 ") + value + " kg"}>{weight < 0 ? "↓" : "↑"}{value}</b> <small>kg</small>
+    {label} <span><b aria-label={(weight < 0 ? "下降 " : "上升 ") + value + " kg"}>{weight < 0 ? "↓" : "↑"}{value}</b> <small>kg</small></span>
   </span>;
 }

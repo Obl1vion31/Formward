@@ -189,12 +189,13 @@
   font-variant-numeric:tabular-nums;
 }
 .selectedDay {
-  display:grid; grid-template-columns:max-content minmax(0,max-content) minmax(0,max-content) minmax(44px,1fr);
+  display:grid; grid-template-columns:max-content minmax(min-content,max-content) minmax(min-content,max-content) minmax(44px,1fr);
   align-items:center; gap:4px clamp(8px,1.5vw,20px); min-block-size:44px;
   font-size:14px; color:var(--warm-white);
 }
 .selectedDay time { white-space:nowrap; }
-.comparisonValue { color:var(--muted); line-height:1.4; overflow-wrap:anywhere; }
+.comparisonValue { color:var(--muted); line-height:1.4; }
+.comparisonValue>span { white-space:nowrap; }
 .comparisonValue b { color:var(--warm-white); font-size:1.1em; font-weight:620; }
 .comparisonValue[data-tone="deficit"] b { color:var(--data-blue); }
 .comparisonValue[data-tone="surplus"] b { color:var(--data-surplus); }
