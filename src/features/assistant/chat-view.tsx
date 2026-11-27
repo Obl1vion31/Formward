@@ -75,6 +75,7 @@ const chatTabs: readonly ChatTab[] = ["chat", "tasks"];
 export function ChatNavigation({tab,onTab,pendingCount}:{tab:ChatTab;onTab:(value:ChatTab)=>void;pendingCount:number}) {
   const chat = useOptionalAssistantChat();
   const locked = Boolean(chat?.entitlement && !chat.entitlement.chat&&!chat.data?.photoHandoff);
+  const lockedNote = useId(), countNote = useId();
   const slide = useSlidingSelection(chatTabs.indexOf(tab), index => onTab(chatTabs[index]));
   return <div className={styles.navigation}>
     <div {...slide} className={styles.navTabs + " " + glass.track} role="tablist" aria-label="小助手内容"
@@ -86,11 +87,17 @@ export function ChatNavigation({tab,onTab,pendingCount}:{tab:ChatTab;onTab:(valu
         onTab(chatTabs[index]);
       }}>
       <span className={glass.selection} data-capsule-indicator aria-hidden="true"/>
-      <button type="button" role="tab" data-capsule-choice={0} aria-selected={tab === "chat"} aria-description={locked ? "当前档位未开放聊天" : undefined} onClick={() => onTab("chat")}>
-        <span className={styles.tabLabel}>聊天</span>{locked && <small className={styles.tierBadge} aria-hidden="true">未开放</small>}
+      <button type="button" role="tab" data-capsule-choice={0} aria-selected={tab === "chat"} aria-describedby={locked ? lockedNote : undefined} onClick={() => onTab("chat")}>
+        <span className={styles.tabLabel}>聊天</span>{locked && <>
+          <small className={styles.tierBadge} aria-hidden="true">未开放</small>
+          <span id={lockedNote} hidden>当前档位未开放聊天</span>
+        </>}
       </button>
-      <button type="button" role="tab" data-capsule-choice={1} aria-selected={tab === "tasks"} aria-description={pendingCount>0?pendingCount+" 项待办":undefined} onClick={() => onTab("tasks")}>
-        <span className={styles.tabLabel}>待办</span>{pendingCount > 0 && <span className={styles.tabBadge} aria-hidden="true">{pendingCount}</span>}
+      <button type="button" role="tab" data-capsule-choice={1} aria-selected={tab === "tasks"} aria-describedby={pendingCount > 0 ? countNote : undefined} onClick={() => onTab("tasks")}>
+        <span className={styles.tabLabel}>待办</span>{pendingCount > 0 && <>
+          <span className={styles.tabBadge} aria-hidden="true">{pendingCount}</span>
+          <span id={countNote} hidden>{pendingCount} 项待办</span>
+        </>}
       </button>
     </div>
     <select className={styles.navSelect} aria-label="切换聊天与待办" value={tab} onChange={event => onTab(event.target.value as ChatTab)}>
