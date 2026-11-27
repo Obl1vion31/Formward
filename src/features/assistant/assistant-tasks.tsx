@@ -81,13 +81,15 @@ export function AssistantTasks({ data, error, loading, retry, dismissItem, compl
     return <li key={item.id} data-assistant-item={item.id}>
       <span className={styles.dailyTaskIcon}><NavigationIcon index={dailyIcons[item.category]}/></span>
       <div className={styles.dailyTaskCopy}>
-        <strong>{item.title}</strong>
-        <div>{item.detail && <span>{item.detail}</span>}{item.mealConfirmation &&
-          <LoadingLink returnScope="assistant" prefetch={false} href={item.action.href} beforeNavigate={navigate}>查看餐次</LoadingLink>}
+        <div className={styles.dailyTaskTitle}>
+          <strong>{item.title}</strong>
           {item.dismissible && <details className={styles.dailyTaskMore}>
             <summary aria-label="更多饮食提醒操作">···</summary>
             <button type="button" disabled={!!busy} onClick={()=>void run(item, false)}>忽略这一天</button>
           </details>}
+        </div>
+        <div className={styles.dailyTaskDetail}>{item.detail && <span>{item.detail}</span>}{item.mealConfirmation &&
+          <LoadingLink returnScope="assistant" prefetch={false} href={item.action.href} beforeNavigate={navigate}>查看餐次</LoadingLink>}
         </div>
       </div>
       {item.mealConfirmation

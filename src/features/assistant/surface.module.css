@@ -369,9 +369,10 @@
 .dailyTaskIcon svg { width:16px; height:16px; }
 .dailyTaskCopy { flex:1 0 min(106px,100%); min-width:0; padding-block:3px; }
 .dailyTaskCopy strong { color:var(--warm-white); font-size:.9375rem; font-weight:590; line-height:1.4; }
-.dailyTaskCopy>div { display:flex; flex-wrap:wrap; align-items:center; gap:0 6px; color:var(--muted); font-size:.8125rem; }
-.dailyTaskCopy>div:empty { display:none; }
-.dailyTaskCopy a { display:inline-flex; align-items:center; min-height:44px; color:var(--warm-white); text-underline-offset:3px; }
+.dailyTaskTitle, .dailyTaskDetail { display:flex; flex-wrap:wrap; align-items:center; column-gap:6px; }
+.dailyTaskDetail { color:var(--muted); font-size:.8125rem; }
+.dailyTaskDetail:empty { display:none; }
+.dailyTaskDetail a { display:inline-flex; align-items:center; min-height:44px; color:var(--warm-white); text-underline-offset:3px; }
 .dailyTaskMore { position:relative; }
 .dailyTaskMore summary { display:grid; place-items:center; min-width:44px; min-height:44px; list-style:none; cursor:pointer; }
 .dailyTaskMore summary::-webkit-details-marker { display:none; }
